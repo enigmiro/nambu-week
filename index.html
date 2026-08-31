@@ -42,7 +42,7 @@
     align-items:flex-end;
     flex-wrap:wrap;
     gap:16px;
-    margin-bottom:22px;
+    margin-bottom:18px;
   }
   .month-block{display:flex; align-items:baseline; gap:10px;}
   .month-num{
@@ -53,18 +53,23 @@
     line-height:1;
   }
   .year-num{font-size:15px;color:var(--ink-soft);}
+  .title-block{
+    text-align:center;
+    margin:0 0 14px;
+  }
   .school-name{
-    font-size:21px;
-    font-weight:700;
+    display:inline-block;
+    font-size:34px;
+    font-weight:800;
     color:var(--ink);
+    letter-spacing:-.5px;
     border:1px dashed transparent;
-    padding:2px 6px;
-    border-radius:3px;
+    padding:4px 10px;
+    border-radius:5px;
     cursor:text;
     outline:none;
   }
   .school-name:hover, .school-name:focus{border-color:var(--line-strong); background:#fff;}
-  .title-row{display:flex; flex-direction:column; align-items:flex-end; gap:4px;}
   .subtitle{font-size:12px; color:var(--ink-soft);}
 
   .toolbar{
@@ -162,6 +167,8 @@
     border:1px solid transparent;
   }
   tbody tr.cat-row:hover .row-label{background:#eae7dd;}
+  .row-label.locked{cursor:default;}
+  .row-label.locked:focus{background:#f1efe8; border-color:transparent;}
   .row-label:focus{background:#fff; border-color:var(--line-strong);}
   .row-del{
     position:absolute; top:2px; right:2px;
@@ -288,9 +295,8 @@
     body{padding:14px 8px 40px;}
     .sheet{padding:16px 12px 26px;}
     .topbar{align-items:flex-start;}
-    .title-row{align-items:flex-start;}
     .month-num{font-size:32px;}
-    .school-name{font-size:17px;}
+    .school-name{font-size:22px;}
     .toolbar{gap:10px 8px;}
     .nav-group{width:100%; justify-content:space-between;}
     .action-group{width:100%; justify-content:flex-start;}
@@ -306,22 +312,23 @@
   }
   @media (max-width:400px){
     .month-num{font-size:26px;}
-    .school-name{font-size:15px;}
+    .school-name{font-size:19px;}
   }
 </style>
 </head>
 <body>
 
 <div class="sheet">
+  <div class="title-block">
+    <span class="school-name" id="schoolName" contenteditable="true" spellcheck="false">교육장-국장 주간 일정표</span>
+  </div>
+
   <div class="topbar">
     <div class="month-block">
       <span class="month-num" id="monthNum">8월</span>
       <span class="year-num" id="yearNum">2026</span>
     </div>
-    <div class="title-row">
-      <span class="school-name" id="schoolName" contenteditable="true" spellcheck="false">교육장-국장 주간 일정표</span>
-      <span class="subtitle">셀을 클릭해서 일정을 입력·수정하세요</span>
-    </div>
+    <span class="subtitle">셀을 클릭해서 일정을 입력·수정하세요</span>
   </div>
 
   <div class="toolbar">
@@ -332,12 +339,12 @@
       <button class="btn ghost" id="gotoToday">오늘</button>
     </div>
     <div class="action-group">
-      <button class="btn small" id="addRowBtn">+ 행 추가</button>
+      <button class="btn small" id="addRowBtn">+ 행 추가(수정)</button>
       <button class="btn small" id="backupBtn">데이터 백업</button>
       <button class="btn small" id="importBtn">불러오기</button>
       <input type="file" id="importFile" accept="application/json" style="display:none;">
       <button class="btn small" id="printBtn">인쇄</button>
-      <button class="btn small primary" id="exportBtn">내보내기</button>
+      <button class="btn small primary" id="exportBtn">내보내기(PDF)</button>
     </div>
   </div>
 
@@ -349,7 +356,7 @@
       </colgroup>
       <thead>
         <tr>
-          <th class="dow-label">구분</th>
+          <th class="dow-label" rowspan="2">구분</th>
           <th>월·MON</th>
           <th>화·TUE</th>
           <th>수·WED</th>
@@ -396,9 +403,9 @@
 
   // ---------- state ----------
   let categories = [
-    {id:"c1", label:"교육장"},
-    {id:"c2", label:"교육지원국장"},
-    {id:"c3", label:"교육행정국장"}
+    {id:"c1", label:"교육장", locked:true},
+    {id:"c2", label:"교육지원국장", locked:true},
+    {id:"c3", label:"교육행정국장", locked:true}
   ];
   // entries[weekKey][categoryId][dayIndex] = [{id,time,title,loc}, ...]
   let entries = {};
@@ -436,6 +443,45 @@
   }
   function uid(){ return 'e'+Math.random().toString(36).slice(2,9); }
 
+  // ---------- time normalization ("0900" -> "09:00") ----------
+  function pad2(n){ return String(n).padStart(2,"0"); }
+  function normalizeTime(raw){
+    const s = String(raw==null ? "" : raw).trim();
+    if(s==="") return "";
+    let m = /^(\d{1,2}):(\d{2})$/.exec(s);
+    if(m){
+      const h = parseInt(m[1],10), mi = parseInt(m[2],10);
+      if(h>=0 && h<=23 && mi>=0 && mi<=59) return pad2(h)+":"+pad2(mi);
+      return s;
+    }
+    if(/^\d{1,4}$/.test(s)){
+      let h, mi;
+      if(s.length<=2){ h=parseInt(s,10); mi=0; }
+      else if(s.length===3){ h=parseInt(s.slice(0,1),10); mi=parseInt(s.slice(1),10); }
+      else { h=parseInt(s.slice(0,2),10); mi=parseInt(s.slice(2),10); }
+      if(h>=0 && h<=23 && mi>=0 && mi<=59) return pad2(h)+":"+pad2(mi);
+    }
+    return s; // not a recognizable time (e.g. free text) — leave as typed
+  }
+
+  // ---------- sort entries within a cell by time (no-time entries last) ----------
+  function timeMinutes(t){
+    const m = /^(\d{2}):(\d{2})$/.exec(t||"");
+    return m ? parseInt(m[1],10)*60+parseInt(m[2],10) : null;
+  }
+  function sortByTime(list){
+    return list
+      .map((e,i)=>({e,i}))
+      .sort((a,b)=>{
+        const ta = timeMinutes(a.e.time), tb = timeMinutes(b.e.time);
+        if(ta===null && tb===null) return a.i-b.i;
+        if(ta===null) return 1;
+        if(tb===null) return -1;
+        return ta!==tb ? ta-tb : a.i-b.i;
+      })
+      .map(x=>x.e);
+  }
+
   function ensureWeek(key){
     if(!entries[key]) entries[key] = {};
     categories.forEach(c=>{
@@ -467,13 +513,9 @@
 
     tblBody.innerHTML = "";
 
-    // date row
+    // date row (label column is merged into the header's "구분" cell via rowspan, so no label cell here)
     const dateRow = document.createElement("tr");
     dateRow.className = "date-row";
-    const labelTd = document.createElement("td");
-    labelTd.className = "label-cell";
-    labelTd.textContent = "구분";
-    dateRow.appendChild(labelTd);
     dates.forEach((d,i)=>{
       const td = document.createElement("td");
       td.textContent = dateCellLabel(d);
@@ -489,33 +531,36 @@
       tr.className = "cat-row";
 
       const labelTd = document.createElement("td");
-      labelTd.className = "row-label";
-      labelTd.contentEditable = "true";
+      labelTd.className = "row-label" + (cat.locked ? " locked" : "");
+      labelTd.contentEditable = cat.locked ? "false" : "true";
       labelTd.spellcheck = false;
       labelTd.textContent = cat.label;
-      labelTd.addEventListener("blur", ()=>{
-        cat.label = labelTd.textContent.trim() || cat.label;
-      });
-      const delBtn = document.createElement("button");
-      delBtn.className = "row-del";
-      delBtn.type = "button";
-      delBtn.title = "행 삭제";
-      delBtn.textContent = "✕";
-      delBtn.addEventListener("click", (e)=>{
-        e.stopPropagation();
-        if(categories.length<=1){ alert("최소 한 개의 행은 남아 있어야 합니다."); return; }
-        if(confirm(`'${cat.label}' 행을 삭제할까요? (해당 행의 모든 일정도 삭제됩니다)`)){
-          categories = categories.filter(c=>c.id!==cat.id);
-          Object.keys(entries).forEach(wk=>{ delete entries[wk][cat.id]; });
-          render();
-        }
-      });
-      labelTd.appendChild(delBtn);
+      if(cat.locked){
+        labelTd.title = "고정된 항목입니다 (수정 불가)";
+      } else {
+        labelTd.addEventListener("blur", ()=>{
+          cat.label = labelTd.textContent.trim() || cat.label;
+        });
+        const delBtn = document.createElement("button");
+        delBtn.className = "row-del";
+        delBtn.type = "button";
+        delBtn.title = "행 삭제";
+        delBtn.textContent = "✕";
+        delBtn.addEventListener("click", (e)=>{
+          e.stopPropagation();
+          if(confirm(`'${cat.label}' 행을 삭제할까요? (해당 행의 모든 일정도 삭제됩니다)`)){
+            categories = categories.filter(c=>c.id!==cat.id);
+            Object.keys(entries).forEach(wk=>{ delete entries[wk][cat.id]; });
+            render();
+          }
+        });
+        labelTd.appendChild(delBtn);
+      }
       tr.appendChild(labelTd);
 
       for(let day=0; day<6; day++){
         const td = document.createElement("td");
-        const cellEntries = entries[key][cat.id][day];
+        const cellEntries = sortByTime(entries[key][cat.id][day]);
         const wrap = document.createElement("div");
         wrap.className = "day-cell" + (cellEntries.length===0 ? " empty" : "");
         if(cellEntries.length===0){
@@ -704,7 +749,7 @@
       row1.innerHTML = `
         <div style="max-width:96px;">
           <label class="fld-label">시간</label>
-          <input type="text" class="time-fld" placeholder="09:00" value="${escapeAttr(ent.time||"")}">
+          <input type="text" class="time-fld" placeholder="0900" value="${escapeAttr(ent.time||"")}">
         </div>
         <div style="flex:1;">
           <label class="fld-label">내용</label>
@@ -718,7 +763,14 @@
         <input type="text" class="loc-fld" placeholder="장소" value="${escapeAttr(ent.loc||"")}">`;
       box.appendChild(row2);
 
-      row1.querySelector(".time-fld").addEventListener("input", e=>{ ent.time = e.target.value; liveSave(); });
+      const timeFld = row1.querySelector(".time-fld");
+      timeFld.addEventListener("input", e=>{ ent.time = e.target.value; liveSave(); });
+      timeFld.addEventListener("blur", e=>{
+        const norm = normalizeTime(e.target.value);
+        ent.time = norm;
+        e.target.value = norm;
+        liveSave();
+      });
       row1.querySelector(".title-fld").addEventListener("input", e=>{ ent.title = e.target.value; liveSave(); });
       row2.querySelector(".loc-fld").addEventListener("input", e=>{ ent.loc = e.target.value; liveSave(); });
 
@@ -753,9 +805,11 @@
   }
 
   function closeModal(){
-    // drop fully-empty entries left over from unused "+ 항목 추가" clicks
-    const list = currentEntries();
-    editing.weekKey && (entries[editing.weekKey][editing.catId][editing.dayIndex] = list.filter(e=> (e.title && e.title.trim()) || (e.time && e.time.trim()) || (e.loc && e.loc.trim())));
+    // normalize any time left unblurred, drop fully-empty entries, then sort by time
+    const list = currentEntries()
+      .map(e=> ({...e, time: normalizeTime(e.time)}))
+      .filter(e=> (e.title && e.title.trim()) || (e.time && e.time.trim()) || (e.loc && e.loc.trim()));
+    editing.weekKey && (entries[editing.weekKey][editing.catId][editing.dayIndex] = sortByTime(list));
     backdrop.classList.remove("open");
     editing = null;
     render();

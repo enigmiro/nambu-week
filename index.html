@@ -985,7 +985,47 @@
     setGhStatus(`연결됨: ${owner}/${repo}`, true);
   });
 
-  async function saveWeekToGithub(weekKey){
+  // Saves for the same week must run one-at-a-time; overlapping saves cause a "sha does not match"
+  // conflict on GitHub's side (a stale version number sent alongside a request that arrives second).
+  let ghSaveQueue = Promise.resolve();
+
+  function saveWeekToGithub(weekKey){
+    ghSaveQueue = ghSaveQueue
+      .then(()=> doSaveWeekToGithub(weekKey))
+      .catch(err=> console.error(err)); // keep the queue alive even if one save fails
+    return ghSaveQueue;
+  }
+
+  async function putWeekFile(api, headers, weekKey, json, attempt){
+    let sha = null;
+    const getRes = await fetch(`${api}?ref=${encodeURIComponent(ghConfig.branch)}`, {headers, cache:"no-store"});
+    if(getRes.status===200){
+      sha = (await getRes.json()).sha;
+    } else if(getRes.status!==404){
+      throw new Error(`파일 조회 실패 (${getRes.status})`);
+    }
+    const body = {
+      message: `주간일정표 저장: ${weekKey}`,
+      content: utf8ToBase64(json),
+      branch: ghConfig.branch
+    };
+    if(sha) body.sha = sha;
+    const putRes = await fetch(api, {
+      method: "PUT",
+      headers: {...headers, "Content-Type":"application/json"},
+      body: JSON.stringify(body)
+    });
+    if(putRes.status===409 && attempt<2){
+      // stale sha (a concurrent save landed first) — refetch the latest version and try once more
+      return putWeekFile(api, headers, weekKey, json, attempt+1);
+    }
+    if(!putRes.ok){
+      const errBody = await putRes.json().catch(()=>({}));
+      throw new Error(errBody.message || `저장 실패 (${putRes.status})`);
+    }
+  }
+
+  async function doSaveWeekToGithub(weekKey){
     if(!ghConfig) return;
     const payload = {weekStart: weekKey, categories, entries: {[weekKey]: entries[weekKey]}};
     const json = JSON.stringify(payload, null, 2);
@@ -996,28 +1036,7 @@
       "Accept": "application/vnd.github+json"
     };
     try{
-      let sha = null;
-      const getRes = await fetch(`${api}?ref=${encodeURIComponent(ghConfig.branch)}`, {headers});
-      if(getRes.status===200){
-        sha = (await getRes.json()).sha;
-      } else if(getRes.status!==404){
-        throw new Error(`파일 조회 실패 (${getRes.status})`);
-      }
-      const body = {
-        message: `주간일정표 저장: ${weekKey}`,
-        content: utf8ToBase64(json),
-        branch: ghConfig.branch
-      };
-      if(sha) body.sha = sha;
-      const putRes = await fetch(api, {
-        method: "PUT",
-        headers: {...headers, "Content-Type":"application/json"},
-        body: JSON.stringify(body)
-      });
-      if(!putRes.ok){
-        const errBody = await putRes.json().catch(()=>({}));
-        throw new Error(errBody.message || `저장 실패 (${putRes.status})`);
-      }
+      await putWeekFile(api, headers, weekKey, json, 0);
       setGhStatus(`GitHub 저장됨: ${ghConfig.path}/${weekKey}.json`, true);
     }catch(err){
       console.error(err);

@@ -351,8 +351,6 @@
     </div>
     <div class="action-group">
       <button class="btn small" id="addRowBtn">+ 행 추가(수정)</button>
-      <button class="btn small" id="connectDataDirBtn">data 폴더 연결</button>
-      <span class="dir-status" id="dirStatus"></span>
       <button class="btn small" id="connectGithubBtn">GitHub 연결</button>
       <span class="dir-status" id="ghStatus"></span>
       <button class="btn small" id="backupBtn">데이터 백업</button>
@@ -388,9 +386,7 @@
 
   <footer class="hint">
     <strong>내보내기</strong>를 누르면 현재 보고 있는 주간 일정표가 PDF 파일로 저장됩니다.
-    일정을 편집하고 <strong>저장 및 닫기</strong>를 누르면 해당 주(week)의 JSON 파일이 자동으로 만들어집니다 —
-    <strong>data 폴더 연결</strong>을 한 번 눌러 폴더를 선택해두면(Chrome/Edge PC) 그 폴더의 <code>data</code> 하위 폴더에 매번 덮어써 저장되고,
-    지원하지 않는 브라우저에서는 다운로드 폴더의 <code>data</code> 하위 폴더로 자동 저장됩니다.
+    <strong>GitHub 연결</strong>로 저장소를 한 번 연결해두면, 일정을 편집하고 <strong>저장 및 닫기</strong>를 누를 때마다 해당 주(week)의 JSON 파일이 그 저장소의 <code>data</code> 폴더에 자동으로 커밋됩니다.
     새로고침 전에 <strong>데이터 백업</strong>으로 전체 데이터를 JSON으로 저장해 두면 <strong>불러오기</strong>로 그대로 이어서 사용할 수 있습니다.
   </footer>
 </div>
@@ -940,83 +936,11 @@
     backdrop.classList.remove("open");
     editing = null;
     render();
-    saveWeekJsonFile(savedWeekKey); // write data/<week>.json locally (fire-and-forget)
     saveWeekToGithub(savedWeekKey); // push to GitHub if connected (fire-and-forget)
   }
   document.getElementById("closeModalBtn").addEventListener("click", closeModal);
   backdrop.addEventListener("click", (e)=>{ if(e.target===backdrop) closeModal(); });
   document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && backdrop.classList.contains("open")) closeModal(); });
-
-  // ---------- data/ folder: write a JSON file for the week on every save ----------
-  const dirStatusEl = document.getElementById("dirStatus");
-  let dataDirHandle = null;
-  let fsApiDeclined = false;
-
-  function setDirStatus(text, connected){
-    dirStatusEl.textContent = text;
-    dirStatusEl.classList.toggle("connected", !!connected);
-  }
-
-  async function ensureDataDir(promptIfNeeded){
-    if(dataDirHandle) return dataDirHandle;
-    if(!window.showDirectoryPicker){ return null; } // unsupported browser (Safari/Firefox/mobile)
-    if(fsApiDeclined && !promptIfNeeded) return null;
-    try{
-      const picked = await window.showDirectoryPicker({id:"weekly-schedule-data", mode:"readwrite"});
-      // if the user picked a parent folder, create/use a "data" subfolder inside it;
-      // if they picked (or created) a folder already named "data", use it directly.
-      const handle = picked.name === "data" ? picked : await picked.getDirectoryHandle("data", {create:true});
-      dataDirHandle = handle;
-      fsApiDeclined = false;
-      setDirStatus(`연결됨: ${handle.name}/`, true);
-      return dataDirHandle;
-    }catch(err){
-      fsApiDeclined = true; // user cancelled — don't keep re-prompting on every save
-      return null;
-    }
-  }
-
-  document.getElementById("connectDataDirBtn").addEventListener("click", async ()=>{
-    if(!window.showDirectoryPicker){
-      alert("이 브라우저는 폴더에 직접 저장하는 기능(File System Access API)을 지원하지 않습니다 (Chrome/Edge PC 브라우저에서 가능). 대신 '저장 및 닫기'를 누르면 다운로드 폴더의 data 하위 폴더로 파일이 저장됩니다.");
-      return;
-    }
-    const dir = await ensureDataDir(true);
-    if(!dir) setDirStatus("연결 취소됨", false);
-  });
-
-  async function saveWeekJsonFile(weekKey){
-    const payload = {weekStart: weekKey, categories, entries: {[weekKey]: entries[weekKey]}};
-    const json = JSON.stringify(payload, null, 2);
-    const filename = `${weekKey}.json`;
-
-    const dir = await ensureDataDir(false);
-    if(dir){
-      try{
-        const fileHandle = await dir.getFileHandle(filename, {create:true});
-        const writable = await fileHandle.createWritable();
-        await writable.write(json);
-        await writable.close();
-        setDirStatus(`저장됨: data/${filename}`, true);
-        return;
-      }catch(err){
-        console.error(err);
-        // fall through to the download fallback below
-      }
-    }
-
-    // Fallback for browsers without folder access (Safari, Firefox, mobile):
-    // most Chromium browsers will auto-create a "data" subfolder under Downloads.
-    const blob = new Blob([json], {type:"application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `data/${filename}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
 
   // ---------- GitHub: push the week's JSON straight into a repo via the Contents API ----------
   let ghConfig = null; // {owner, repo, branch, path, token} — kept in memory only, never persisted

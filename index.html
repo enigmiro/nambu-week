@@ -1136,8 +1136,20 @@
       if(!res.ok) throw new Error(`불러오기 실패 (${res.status})`);
       const data = await res.json();
       const payload = JSON.parse(base64ToUtf8(data.content));
-      if(payload.categories) categories = payload.categories;
+      // Guard against a corrupted/older save where categories was saved as an empty array —
+      // "[]" is truthy in JS, so a naive `if(payload.categories)` check would still wipe out
+      // the default rows. Only adopt the loaded categories if they actually contain rows.
+      let categoriesWereEmpty = false;
+      if(payload.categories && payload.categories.length > 0){
+        categories = payload.categories;
+      } else if(payload.categories){
+        categoriesWereEmpty = true; // present but empty — keep current defaults, and heal the file below
+      }
       if(payload.entries && payload.entries[weekKey]) entries[weekKey] = payload.entries[weekKey];
+      if(categoriesWereEmpty){
+        console.warn(`data/${weekKey}.json had an empty categories list — keeping the default rows and re-saving to fix the file.`);
+        saveWeekToGithub(weekKey); // self-heal: re-commit with the correct (non-empty) categories
+      }
       return true;
     }catch(err){
       console.error(err);

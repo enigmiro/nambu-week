@@ -74,6 +74,16 @@
   .school-name:hover, .school-name:focus{border-color:var(--line-strong); background:#fff;}
   .subtitle{font-size:12px; color:var(--ink-soft);}
 
+  .data-source-banner{
+    display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
+    background:#fff3cf; border:1px solid #e8d48a; color:#5c4a12;
+    font-size:13px; padding:9px 14px; border-radius:6px; margin:0 0 16px;
+  }
+  .data-source-banner.connected{
+    background:#e6f3ea; border-color:#a9d4b6; color:#245c37;
+  }
+  .data-source-banner .btn{padding:4px 11px; font-size:12px;}
+
   .toolbar{
     display:flex;
     align-items:center;
@@ -111,7 +121,16 @@
   .dir-status.connected{color:#3f8a5c; font-weight:600;}
 
   /* ---------- Table ---------- */
+  .table-scroll-wrap{position:relative;}
   .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  /* Fades in on the right edge whenever the table is wider than its container, so it's obvious
+     there's more to scroll to (e.g. to reach Saturday/Sunday) rather than looking like it's missing. */
+  .table-scroll-wrap.has-overflow::after{
+    content:"";
+    position:absolute; top:0; right:0; bottom:0; width:26px;
+    background:linear-gradient(to right, rgba(238,236,229,0), rgba(238,236,229,.95));
+    pointer-events:none;
+  }
   table{
     width:100%;
     border-collapse:collapse;
@@ -141,13 +160,6 @@
     border:1px solid var(--line);
     background:#fff;
     text-align:left;
-  }
-  tbody tr.date-row td.label-cell{
-    background:var(--navy);
-    color:#fff;
-    text-align:center;
-    font-size:12px;
-    position:sticky; left:0; z-index:2;
   }
   tbody tr.date-row td.sun-date{color:var(--sun-red);}
   tbody tr.date-row td.sat-date{color:var(--sat-blue);}
@@ -282,16 +294,19 @@
     body{background:#fff; padding:0;}
     .sheet{border:none; max-width:none; padding:6px;}
     .toolbar, .add-row-wrap, .row-del, .add-hint, footer.hint, .school-name{cursor:default;}
-    .btn, .row-del{display:none !important;}
+    .btn, .row-del, .data-source-banner{display:none !important;}
+    .table-scroll-wrap.has-overflow::after{display:none;}
   }
 
   /* ---------- PDF capture mode: hide chrome, keep just the sheet content ---------- */
   body.pdf-capture .toolbar,
   body.pdf-capture footer.hint,
   body.pdf-capture .row-del,
-  body.pdf-capture .add-hint{ display:none !important; }
+  body.pdf-capture .add-hint,
+  body.pdf-capture .data-source-banner{ display:none !important; }
   body.pdf-capture .sheet{ border:none; }
   body.pdf-capture .day-cell.empty{ min-height:70px; }
+  body.pdf-capture .table-scroll-wrap.has-overflow::after{ display:none; }
 
   .pdf-overlay{
     display:none; position:fixed; inset:0; z-index:80;
@@ -343,6 +358,10 @@
     <span class="school-name" id="schoolName" contenteditable="true" spellcheck="false">교육장-국장 주간 일정표</span>
   </div>
 
+  <div class="data-source-banner" id="dataSourceBanner">
+    예시 데이터를 보고 있습니다 — 실제 저장된 데이터를 보려면 <button class="btn small primary" id="bannerConnectBtn">GitHub 연결</button>을 눌러주세요.
+  </div>
+
   <div class="topbar">
     <div class="month-block">
       <span class="month-num" id="monthNum">8월</span>
@@ -370,30 +389,32 @@
     </div>
   </div>
 
-  <div class="table-scroll">
-    <table id="schedTable">
-      <colgroup>
-        <col class="label-col">
-        <col><col><col><col><col>
-        <col class="weekend-col">
-        <col class="weekend-col">
-      </colgroup>
-      <thead>
-        <tr>
-          <th class="dow-label" rowspan="2">구분</th>
-          <th>월·MON</th>
-          <th>화·TUE</th>
-          <th>수·WED</th>
-          <th>목·THU</th>
-          <th>금·FRI</th>
-          <th class="dow-sat">토·SAT</th>
-          <th class="dow-sun">일·SUN</th>
-        </tr>
-      </thead>
-      <tbody id="tblBody">
-        <!-- rendered by JS -->
-      </tbody>
-    </table>
+  <div class="table-scroll-wrap" id="tableScrollWrap">
+    <div class="table-scroll" id="tableScroll">
+      <table id="schedTable">
+        <colgroup>
+          <col class="label-col">
+          <col><col><col><col><col>
+          <col class="weekend-col">
+          <col class="weekend-col">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="dow-label" rowspan="2">구분</th>
+            <th>월·MON</th>
+            <th>화·TUE</th>
+            <th>수·WED</th>
+            <th>목·THU</th>
+            <th>금·FRI</th>
+            <th class="dow-sat">토·SAT</th>
+            <th class="dow-sun">일·SUN</th>
+          </tr>
+        </thead>
+        <tbody id="tblBody">
+          <!-- rendered by JS -->
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <footer class="hint">
@@ -411,7 +432,7 @@
     <div class="modal-sub">토큰은 이 브라우저 세션에만 보관되며 파일이나 서버 어디에도 저장되지 않습니다. repo 쓰기 권한만 가진 토큰을 권장합니다.</div>
     <div class="entry-edit">
       <label class="fld-label">저장소 (owner/repo)</label>
-      <input type="text" id="ghRepo" placeholder="예: myid/schedule-data">
+      <input type="text" id="ghRepo" placeholder="예: myid/schedule-data" value="enigmiro/nambu-week">
     </div>
     <div class="entry-edit">
       <label class="fld-label">브랜치</label>
@@ -435,6 +456,22 @@
   </div>
 </div>
 
+<!-- Auto-connect passphrase modal (only appears if GH_AUTO_CONFIG has an encrypted token set up) -->
+<div class="backdrop" id="passBackdrop">
+  <div class="modal" style="max-width:340px;">
+    <h3>GitHub 자동 연결</h3>
+    <div class="modal-sub">암호를 입력하면 저장된 GitHub 저장소에 자동으로 연결됩니다. 암호는 저장되지 않고 이 연결에만 사용됩니다.</div>
+    <div class="entry-edit">
+      <label class="fld-label">암호(passphrase)</label>
+      <input type="password" id="autoConnectPass" placeholder="암호 입력">
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost small" id="autoConnectSkipBtn">건너뛰기</button>
+      <button class="btn primary small" id="autoConnectGoBtn">연결</button>
+    </div>
+  </div>
+</div>
+
 <!-- Cell edit modal -->
 <div class="backdrop" id="backdrop">
   <div class="modal">
@@ -454,6 +491,21 @@
 <script>
 (function(){
   "use strict";
+
+  // =====================================================================================
+  // GITHUB 자동 연결 설정 (선택 사항)
+  // encrypt.html 도구로 만든 암호화 결과를 아래 enc: {...} 자리에 붙여넣으면,
+  // 페이지를 열 때 암호(passphrase) 한 번만 입력해서 자동으로 GitHub에 연결됩니다.
+  // 비워두면(enc.data가 빈 문자열이면) 기존처럼 "GitHub 연결" 버튼으로 수동 연결합니다.
+  // 절대 토큰 원문을 여기 직접 적지 마세요 — 반드시 암호화된 값만 넣으세요.
+  // =====================================================================================
+  const GH_AUTO_CONFIG = {
+    owner: "enigmiro",
+    repo: "nambu-week",
+    branch: "main",
+    path: "data",
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
+  };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
 
@@ -551,6 +603,19 @@
   const monthNum = document.getElementById("monthNum");
   const yearNum = document.getElementById("yearNum");
   const weekRange = document.getElementById("weekRange");
+  const tableScroll = document.getElementById("tableScroll");
+  const tableScrollWrap = document.getElementById("tableScrollWrap");
+
+  function updateScrollShadow(){
+    const overflowing = tableScroll.scrollWidth - tableScroll.clientWidth > 4;
+    tableScrollWrap.classList.toggle("has-overflow", overflowing);
+  }
+  window.addEventListener("resize", updateScrollShadow);
+  tableScroll.addEventListener("scroll", ()=>{
+    // hide the fade once scrolled close to the end, so it doesn't look stuck
+    const atEnd = tableScroll.scrollLeft + tableScroll.clientWidth >= tableScroll.scrollWidth - 4;
+    tableScrollWrap.classList.toggle("has-overflow", !atEnd);
+  });
 
   function render(){
     const dates = weekDates(weekStart);
@@ -660,6 +725,8 @@
       }
       tblBody.appendChild(tr);
     });
+
+    updateScrollShadow();
   }
 
   function escapeHtml(s){
@@ -672,8 +739,14 @@
     render(); // show immediately with whatever we already have
     const key = iso(weekStart);
     if(ghConfig && !loadedFromGithubWeeks.has(key)){
+      setBannerState("loading", `${ghConfig.owner}/${ghConfig.repo}에서 이 주 데이터를 불러오는 중…`);
       const found = await loadWeekFromGithub(key);
       if(found) render(); // refresh with the data pulled from GitHub
+      setBannerState("connected", found
+        ? `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>의 저장된 데이터를 보고 있습니다.`
+        : `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
+    } else if(ghConfig){
+      setBannerState("connected", `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>에 연결됨.`);
     }
   }
   document.getElementById("prevWeek").addEventListener("click", ()=> goToWeek(addDays(weekStart,-7)));
@@ -991,10 +1064,44 @@
   // ---------- GitHub: push the week's JSON straight into a repo via the Contents API ----------
   let ghConfig = null; // {owner, repo, branch, path, token} — kept in memory only, never persisted
 
+  // Decrypts a token produced by encrypt.html. Wrong passphrase makes AES-GCM's
+  // authentication check fail, so decryptToken() rejects cleanly rather than returning garbage.
+  function b64ToBuf(b64){ return Uint8Array.from(atob(b64), c=>c.charCodeAt(0)); }
+  async function deriveKey(passphrase, saltBytes){
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(passphrase), {name:"PBKDF2"}, false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      {name:"PBKDF2", salt: saltBytes, iterations: 150000, hash:"SHA-256"},
+      keyMaterial, {name:"AES-GCM", length:256}, false, ["decrypt"]
+    );
+  }
+  async function decryptToken(encObj, passphrase){
+    const key = await deriveKey(passphrase, b64ToBuf(encObj.salt));
+    const plainBuf = await crypto.subtle.decrypt({name:"AES-GCM", iv: b64ToBuf(encObj.iv)}, key, b64ToBuf(encObj.data));
+    return new TextDecoder().decode(plainBuf);
+  }
+
   function setGhStatus(text, ok){
     const el = document.getElementById("ghStatus");
     el.textContent = text;
     el.classList.toggle("connected", !!ok);
+  }
+
+  function setBannerState(mode, text){
+    // mode: 'demo' | 'loading' | 'connected'
+    const el = document.getElementById("dataSourceBanner");
+    if(mode==="connected"){
+      el.classList.add("connected");
+      el.innerHTML = text || "GitHub에 연결되어 최신 데이터를 보고 있습니다.";
+    } else if(mode==="loading"){
+      el.classList.remove("connected");
+      el.textContent = text || "저장된 데이터를 불러오는 중…";
+    } else {
+      el.classList.remove("connected");
+      el.innerHTML = `예시 데이터를 보고 있습니다 — 실제 저장된 데이터를 보려면 <button class="btn small primary" id="bannerConnectBtn">GitHub 연결</button>을 눌러주세요.`;
+      const btn = document.getElementById("bannerConnectBtn");
+      if(btn) btn.addEventListener("click", ()=> document.getElementById("connectGithubBtn").click());
+    }
   }
 
   function utf8ToBase64(str){
@@ -1069,10 +1176,14 @@
     ghConfig = {owner, repo, branch, path, token};
     ghBackdrop.classList.remove("open");
     setGhStatus(`연결됨: ${owner}/${repo} — 불러오는 중…`, true);
+    setBannerState("loading", `${owner}/${repo}에서 이번 주 데이터를 불러오는 중…`);
     const key = iso(weekStart);
     const found = await loadWeekFromGithub(key);
     render();
     setGhStatus(found ? `연결됨: ${owner}/${repo} (저장된 데이터 불러옴)` : `연결됨: ${owner}/${repo}`, true);
+    setBannerState("connected", found
+      ? `<strong>${owner}/${repo}</strong>의 저장된 데이터를 보고 있습니다.`
+      : `<strong>${owner}/${repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
   });
 
   // Saves for the same week must run one-at-a-time; overlapping saves cause a "sha does not match"
@@ -1148,6 +1259,54 @@
   })();
 
   render();
+  setBannerState("demo"); // wires up the banner's "GitHub 연결" button and shows the demo-data notice
+
+  // ---------- Auto-connect (optional): if GH_AUTO_CONFIG has an encrypted token set up ----------
+  async function runAutoConnect(passphrase){
+    try{
+      const token = await decryptToken(GH_AUTO_CONFIG.enc, passphrase);
+      ghConfig = { owner: GH_AUTO_CONFIG.owner, repo: GH_AUTO_CONFIG.repo, branch: GH_AUTO_CONFIG.branch, path: GH_AUTO_CONFIG.path, token };
+      setGhStatus(`연결됨: ${ghConfig.owner}/${ghConfig.repo} — 불러오는 중…`, true);
+      setBannerState("loading", `${ghConfig.owner}/${ghConfig.repo}에서 이번 주 데이터를 불러오는 중…`);
+      const key = iso(weekStart);
+      const found = await loadWeekFromGithub(key);
+      render();
+      setGhStatus(found ? `연결됨: ${ghConfig.owner}/${ghConfig.repo} (저장된 데이터 불러옴)` : `연결됨: ${ghConfig.owner}/${ghConfig.repo}`, true);
+      setBannerState("connected", found
+        ? `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>의 저장된 데이터를 보고 있습니다.`
+        : `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
+      return true;
+    }catch(err){
+      console.error(err);
+      return false;
+    }
+  }
+
+  const passBackdrop = document.getElementById("passBackdrop");
+  if(GH_AUTO_CONFIG.enc && GH_AUTO_CONFIG.enc.data){
+    passBackdrop.classList.add("open");
+    setTimeout(()=> document.getElementById("autoConnectPass").focus(), 50);
+  }
+
+  async function submitAutoConnect(){
+    const passInput = document.getElementById("autoConnectPass");
+    const pass = passInput.value;
+    if(!pass) return;
+    const ok = await runAutoConnect(pass);
+    if(ok){
+      passBackdrop.classList.remove("open");
+      passInput.value = "";
+    }else{
+      alert("암호가 올바르지 않거나 복호화에 실패했습니다. 다시 시도하거나 '건너뛰기'를 눌러 수동으로 연결해주세요.");
+      passInput.value = "";
+      passInput.focus();
+    }
+  }
+  document.getElementById("autoConnectGoBtn").addEventListener("click", submitAutoConnect);
+  document.getElementById("autoConnectPass").addEventListener("keydown", (e)=>{ if(e.key==="Enter") submitAutoConnect(); });
+  document.getElementById("autoConnectSkipBtn").addEventListener("click", ()=>{
+    passBackdrop.classList.remove("open");
+  });
 })();
 </script>
 </body>

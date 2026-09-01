@@ -4,28 +4,34 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>주간 일정표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
 <style>
   :root{
-    --navy:#1f3a5f;
-    --navy-deep:#16283f;
-    --sat-blue:#5b7fb5;
-    --sat-blue-bg:#e4ebf6;
-    --sun-red:#c1502e;
-    --sun-red-bg:#f7e9e5;
-    --paper:#fbfaf7;
-    --line:#d9d5cb;
-    --line-strong:#b9b3a4;
-    --ink:#242220;
-    --ink-soft:#6b665d;
-    --accent:#c1502e;
-    --today-glow:#fff3cf;
-    --row-hover:#f4f1ea;
+    --navy:#22344a;
+    --navy-deep:#141f2c;
+    --sat-blue:#4d6f93;
+    --sat-blue-bg:#e6edf3;
+    --sun-red:#af4327;
+    --sun-red-bg:#f6e7e1;
+    --paper:#faf7f0;
+    --line:#ddd6c6;
+    --line-strong:#b6ab93;
+    --ink:#1f1c17;
+    --ink-soft:#726a58;
+    --accent:#af4327;
+    --today-glow:#fbedc2;
+    --row-hover:#f3efe3;
+    --font-serif:'Noto Serif KR', serif;
+    --font-sans:'Pretendard Variable','Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:#eeece5;
-    font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    background:#e9e5d8;
+    font-family:var(--font-sans);
     color:var(--ink);
     padding:28px 20px 60px;
   }
@@ -34,53 +40,48 @@
     margin:0 auto;
     background:var(--paper);
     border:1px solid var(--line-strong);
-    padding:32px 34px 40px;
+    padding:36px 38px 42px;
+    box-shadow:0 1px 3px rgba(31,28,23,.06), 0 18px 46px -30px rgba(31,28,23,.35);
   }
 
   /* ---------- Header ---------- */
   .topbar{
     display:flex;
-    justify-content:space-between;
-    align-items:flex-end;
+    justify-content:flex-end;
+    align-items:center;
     flex-wrap:wrap;
     gap:16px;
-    margin-bottom:18px;
+    padding-bottom:16px;
+    margin-bottom:20px;
+    border-bottom:1px solid var(--line);
   }
-  .month-block{display:flex; align-items:baseline; gap:10px;}
-  .month-num{
-    font-size:40px;
-    font-weight:800;
-    color:var(--navy-deep);
-    letter-spacing:-1px;
-    line-height:1;
-  }
-  .year-num{font-size:15px;color:var(--ink-soft);}
   .title-block{
     text-align:center;
-    margin:0 0 14px;
+    margin:2px 0 22px;
   }
   .school-name{
     display:inline-block;
-    font-size:34px;
-    font-weight:800;
-    color:var(--ink);
-    letter-spacing:-.5px;
+    font-family:var(--font-serif);
+    font-size:36px;
+    font-weight:700;
+    color:var(--navy-deep);
+    letter-spacing:-.2px;
     border:1px dashed transparent;
-    padding:4px 10px;
+    padding:4px 12px;
     border-radius:5px;
     cursor:text;
     outline:none;
   }
   .school-name:hover, .school-name:focus{border-color:var(--line-strong); background:#fff;}
-  .subtitle{font-size:12px; color:var(--ink-soft);}
+  .subtitle{font-size:12.5px; color:var(--ink-soft); letter-spacing:.1px;}
 
   .data-source-banner{
     display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
-    background:#fff3cf; border:1px solid #e8d48a; color:#5c4a12;
-    font-size:13px; padding:9px 14px; border-radius:6px; margin:0 0 16px;
+    background:#fbf1d4; border:1px solid #e3cd8f; color:#5c4a12;
+    font-size:13px; padding:10px 14px; border-radius:7px; margin:0 0 18px;
   }
   .data-source-banner.connected{
-    background:#e6f3ea; border-color:#a9d4b6; color:#245c37;
+    background:#e7f2ea; border-color:#a8cdb3; color:#20522f;
   }
   .data-source-banner .btn{padding:4px 11px; font-size:12px;}
 
@@ -98,23 +99,24 @@
   .btn{
     font-family:inherit;
     font-size:13px;
+    font-weight:500;
     border:1px solid var(--line-strong);
     background:#fff;
     color:var(--ink);
-    padding:7px 13px;
-    border-radius:5px;
+    padding:7px 14px;
+    border-radius:6px;
     cursor:pointer;
-    transition:background .12s, border-color .12s;
+    transition:background .12s, border-color .12s, box-shadow .12s;
     white-space:nowrap;
     touch-action:manipulation;
   }
-  .btn:hover{background:var(--row-hover);}
-  .btn.primary{background:var(--navy); border-color:var(--navy); color:#fff;}
-  .btn.primary:hover{background:var(--navy-deep);}
+  .btn:hover{background:var(--row-hover); border-color:var(--ink-soft);}
+  .btn.primary{background:var(--navy); border-color:var(--navy); color:#fff; box-shadow:0 1px 2px rgba(20,31,44,.25);}
+  .btn.primary:hover{background:var(--navy-deep); border-color:var(--navy-deep);}
   .btn.ghost{border-color:transparent; background:transparent;}
   .btn.ghost:hover{background:var(--row-hover);}
-  .btn.small{padding:4px 9px; font-size:12px;}
-  .btn.danger{color:#a83a2f;}
+  .btn.small{padding:4px 10px; font-size:12px;}
+  .btn.danger{color:var(--sun-red);}
   .week-range{font-size:13px; color:var(--ink-soft); min-width:150px; text-align:center;}
   .action-group{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
   .dir-status{font-size:11.5px; color:var(--ink-soft);}
@@ -141,15 +143,16 @@
   col.weekend-col{width:64px;}
 
   thead th{
-    padding:9px 6px;
+    padding:10px 6px;
     font-size:13px;
-    font-weight:700;
+    font-weight:600;
+    letter-spacing:.2px;
     text-align:center;
-    background:#8b8b8b;
+    background:var(--navy);
     color:#fff;
     border:1px solid var(--paper);
   }
-  thead th.dow-label{background:var(--navy-deep); position:sticky; left:0; z-index:3;}
+  thead th.dow-label{background:var(--navy-deep); position:sticky; left:0; z-index:3; font-family:var(--font-serif); font-weight:700;}
   thead th.dow-sun{background:var(--sun-red);}
   thead th.dow-sat{background:var(--sat-blue);}
 
@@ -330,8 +333,7 @@
     body{padding:14px 8px 40px;}
     .sheet{padding:16px 12px 26px;}
     .topbar{align-items:flex-start;}
-    .month-num{font-size:32px;}
-    .school-name{font-size:22px;}
+    .school-name{font-size:24px;}
     .toolbar{gap:10px 8px;}
     .nav-group{width:100%; justify-content:space-between;}
     .action-group{width:100%; justify-content:flex-start;}
@@ -346,8 +348,7 @@
     .btn.primary{padding:10px 16px;}
   }
   @media (max-width:400px){
-    .month-num{font-size:26px;}
-    .school-name{font-size:19px;}
+    .school-name{font-size:20px;}
   }
 </style>
 </head>
@@ -363,10 +364,6 @@
   </div>
 
   <div class="topbar">
-    <div class="month-block">
-      <span class="month-num" id="monthNum">8월</span>
-      <span class="year-num" id="yearNum">2026</span>
-    </div>
     <span class="subtitle">셀을 클릭해서 일정을 입력·수정하세요</span>
   </div>
 
@@ -611,8 +608,6 @@
   // ---------- rendering ----------
   const tblBody = document.getElementById("tblBody");
   const dateRowEl = document.getElementById("dateRow");
-  const monthNum = document.getElementById("monthNum");
-  const yearNum = document.getElementById("yearNum");
   const weekRange = document.getElementById("weekRange");
   const tableScroll = document.getElementById("tableScroll");
   const tableScrollWrap = document.getElementById("tableScrollWrap");
@@ -633,13 +628,6 @@
     const key = iso(weekStart);
     ensureWeek(key);
     const today = new Date();
-
-    // header month/year
-    const startM = dates[0].getMonth(), endM = dates[6].getMonth();
-    monthNum.textContent = startM===endM ? `${startM+1}월` : `${startM+1}월~${endM+1}월`;
-    yearNum.textContent = dates[0].getFullYear() === dates[6].getFullYear()
-      ? dates[0].getFullYear()
-      : `${dates[0].getFullYear()} / ${dates[6].getFullYear()}`;
 
     weekRange.textContent = `${dates[0].getMonth()+1}.${dates[0].getDate()} (월) – ${dates[6].getMonth()+1}.${dates[6].getDate()} (일)`;
 

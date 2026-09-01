@@ -380,6 +380,7 @@
     <div class="action-group">
       <button class="btn small" id="addRowBtn">+ 행 추가(수정)</button>
       <button class="btn small" id="connectGithubBtn">GitHub 연결</button>
+      <button class="btn small ghost" id="forgetGithubBtn" style="display:none;" title="이 브라우저에 저장된 연결 정보를 지웁니다">연결 해제</button>
       <span class="dir-status" id="ghStatus"></span>
       <button class="btn small" id="backupBtn">데이터 백업</button>
       <button class="btn small" id="importBtn">불러오기</button>
@@ -429,7 +430,7 @@
 <div class="backdrop" id="ghBackdrop">
   <div class="modal">
     <h3>GitHub 저장 연결</h3>
-    <div class="modal-sub">토큰은 이 브라우저 세션에만 보관되며 파일이나 서버 어디에도 저장되지 않습니다. repo 쓰기 권한만 가진 토큰을 권장합니다.</div>
+    <div class="modal-sub">repo 쓰기 권한만 가진 토큰을 권장합니다. 아래 "기억하기"를 켜지 않으면 토큰은 이 브라우저 세션에만 보관되고, 새로고침하면 다시 입력해야 합니다.</div>
     <div class="entry-edit">
       <label class="fld-label">저장소 (owner/repo)</label>
       <input type="text" id="ghRepo" placeholder="예: myid/schedule-data" value="enigmiro/nambu-week">
@@ -446,6 +447,10 @@
       <label class="fld-label">Personal Access Token (repo 쓰기 권한)</label>
       <input type="password" id="ghToken" placeholder="ghp_...">
     </div>
+    <label class="share-chip" style="width:100%; justify-content:flex-start; margin-bottom:4px;">
+      <input type="checkbox" id="ghRemember">
+      이 브라우저에 저장 (다음부터 새로고침해도 자동 연결) — 본인만 쓰는 PC에서만 체크하세요
+    </label>
     <div class="modal-footer">
       <span></span>
       <div style="display:flex; gap:8px;">
@@ -504,7 +509,7 @@
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"l7glVTF5jP0WrWR83izcVQ==","iv":"jWoHyh/KkuL4gfSi","data":"cT8f6TzoArpnjBZh3Gqt+z3YZc7sqgKjygg4mSJJcLKClokSiE3YiU/Yt4RGBjSP6drXOWXM9l4HcNi/N5H6NmuDZwU67SQiKturcLjGD5k1JeHNQoGvy4Ea6SLsqTchGTU3TIGmScTfpUr7nQ=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -1175,17 +1180,36 @@
     ghBackdropMouseDownOnSelf = false;
   });
 
+  // ---------- "이 브라우저에 저장" (remember on this device) ----------
+  // Only meaningful when this file is opened directly in your own browser (not previewed inside
+  // Claude's chat window, where browser storage is sandboxed and won't persist).
+  const GH_REMEMBER_KEY = "weekly-schedule-gh-config-v1";
+  function rememberGhConfig(cfg){
+    try{ localStorage.setItem(GH_REMEMBER_KEY, JSON.stringify(cfg)); }catch(e){ console.warn("이 브라우저에 저장하지 못했습니다:", e); }
+  }
+  function forgetGhConfig(){
+    try{ localStorage.removeItem(GH_REMEMBER_KEY); }catch(e){}
+  }
+  function loadRememberedGhConfig(){
+    try{
+      const raw = localStorage.getItem(GH_REMEMBER_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
   document.getElementById("ghSaveBtn").addEventListener("click", async ()=>{
     const repoRaw = document.getElementById("ghRepo").value.trim();
     const [owner, repo] = repoRaw.split("/").map(s=>s && s.trim());
     const branch = document.getElementById("ghBranch").value.trim() || "main";
     const path = document.getElementById("ghPath").value.trim().replace(/^\/+|\/+$/g,"") || "data";
     const token = document.getElementById("ghToken").value.trim();
+    const remember = document.getElementById("ghRemember").checked;
     if(!owner || !repo || !token){
       alert("저장소는 'owner/repo' 형식으로, 토큰도 함께 입력해주세요.");
       return;
     }
     ghConfig = {owner, repo, branch, path, token};
+    if(remember){ rememberGhConfig(ghConfig); document.getElementById("forgetGithubBtn").style.display = ""; }
     ghBackdrop.classList.remove("open");
     setGhStatus(`연결됨: ${owner}/${repo} — 불러오는 중…`, true);
     setBannerState("loading", `${owner}/${repo}에서 이번 주 데이터를 불러오는 중…`);
@@ -1196,6 +1220,15 @@
     setBannerState("connected", found
       ? `<strong>${owner}/${repo}</strong>의 저장된 데이터를 보고 있습니다.`
       : `<strong>${owner}/${repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
+  });
+
+  document.getElementById("forgetGithubBtn").addEventListener("click", ()=>{
+    if(!confirm("이 브라우저에 저장된 GitHub 연결 정보를 지울까요? 다음부터는 다시 수동으로 연결해야 합니다.")) return;
+    forgetGhConfig();
+    ghConfig = null;
+    document.getElementById("forgetGithubBtn").style.display = "none";
+    setGhStatus("", false);
+    setBannerState("demo");
   });
 
   // Saves for the same week must run one-at-a-time; overlapping saves cause a "sha does not match"
@@ -1294,8 +1327,27 @@
     }
   }
 
+  // ---------- Reconnect automatically using a remembered config, if this browser has one ----------
+  async function connectWithConfig(cfg){
+    ghConfig = cfg;
+    document.getElementById("forgetGithubBtn").style.display = "";
+    setGhStatus(`연결됨: ${cfg.owner}/${cfg.repo} — 불러오는 중…`, true);
+    setBannerState("loading", `${cfg.owner}/${cfg.repo}에서 이번 주 데이터를 불러오는 중…`);
+    const key = iso(weekStart);
+    const found = await loadWeekFromGithub(key);
+    render();
+    setGhStatus(found ? `연결됨: ${cfg.owner}/${cfg.repo} (저장된 데이터 불러옴)` : `연결됨: ${cfg.owner}/${cfg.repo}`, true);
+    setBannerState("connected", found
+      ? `<strong>${cfg.owner}/${cfg.repo}</strong>의 저장된 데이터를 보고 있습니다.`
+      : `<strong>${cfg.owner}/${cfg.repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
+  }
+
   const passBackdrop = document.getElementById("passBackdrop");
-  if(GH_AUTO_CONFIG.enc && GH_AUTO_CONFIG.enc.data){
+  const remembered = loadRememberedGhConfig();
+  if(remembered && remembered.owner && remembered.repo && remembered.token){
+    // zero-friction path: this browser already has a saved connection — just use it, no prompt at all
+    connectWithConfig(remembered);
+  } else if(GH_AUTO_CONFIG.enc && GH_AUTO_CONFIG.enc.data){
     passBackdrop.classList.add("open");
     setTimeout(()=> document.getElementById("autoConnectPass").focus(), 50);
   }

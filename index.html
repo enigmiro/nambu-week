@@ -153,7 +153,7 @@
   thead th.dow-sun{background:var(--sun-red);}
   thead th.dow-sat{background:var(--sat-blue);}
 
-  tbody tr.date-row td{
+  thead tr.date-row td{
     padding:6px 8px;
     font-size:14px;
     font-weight:700;
@@ -161,9 +161,9 @@
     background:#fff;
     text-align:left;
   }
-  tbody tr.date-row td.sun-date{color:var(--sun-red);}
-  tbody tr.date-row td.sat-date{color:var(--sat-blue);}
-  tbody tr.date-row td.is-today{background:var(--today-glow);}
+  thead tr.date-row td.sun-date{color:var(--sun-red);}
+  thead tr.date-row td.sat-date{color:var(--sat-blue);}
+  thead tr.date-row td.is-today{background:var(--today-glow);}
 
   tbody tr.cat-row td{
     border:1px solid var(--line);
@@ -410,9 +410,14 @@
             <th class="dow-sat">토·SAT</th>
             <th class="dow-sun">일·SUN</th>
           </tr>
+          <tr class="date-row" id="dateRow">
+            <!-- 7 date cells rendered by JS; rowspan above only works reliably while this
+                 row stays inside <thead> alongside it (browsers do not honor rowspan
+                 spanning into a separate <tbody>, even though the HTML table model allows it). -->
+          </tr>
         </thead>
         <tbody id="tblBody">
-          <!-- rendered by JS -->
+          <!-- category rows rendered by JS -->
         </tbody>
       </table>
     </div>
@@ -605,6 +610,7 @@
 
   // ---------- rendering ----------
   const tblBody = document.getElementById("tblBody");
+  const dateRowEl = document.getElementById("dateRow");
   const monthNum = document.getElementById("monthNum");
   const yearNum = document.getElementById("yearNum");
   const weekRange = document.getElementById("weekRange");
@@ -639,18 +645,17 @@
 
     tblBody.innerHTML = "";
 
-    // date row (label column is merged into the header's "구분" cell via rowspan, so no label cell here)
-    const dateRow = document.createElement("tr");
-    dateRow.className = "date-row";
+    // date row lives in <thead> (see markup) so the "구분" cell's rowspan actually applies —
+    // update its cells in place rather than rebuilding a <tr> into <tbody>.
+    dateRowEl.innerHTML = "";
     dates.forEach((d,i)=>{
       const td = document.createElement("td");
       td.textContent = dateCellLabel(d);
       if(i===5) td.classList.add("sat-date");
       if(i===6) td.classList.add("sun-date");
       if(sameDay(d,today)) td.classList.add("is-today");
-      dateRow.appendChild(td);
+      dateRowEl.appendChild(td);
     });
-    tblBody.appendChild(dateRow);
 
     // category rows
     categories.forEach(cat=>{

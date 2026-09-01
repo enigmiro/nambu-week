@@ -104,7 +104,9 @@
   .btn.small{padding:4px 9px; font-size:12px;}
   .btn.danger{color:#a83a2f;}
   .week-range{font-size:13px; color:var(--ink-soft); min-width:150px; text-align:center;}
-  .action-group{display:flex; gap:6px; flex-wrap:wrap;}
+  .action-group{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+  .dir-status{font-size:11.5px; color:var(--ink-soft);}
+  .dir-status.connected{color:#3f8a5c; font-weight:600;}
 
   /* ---------- Table ---------- */
   .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
@@ -247,6 +249,15 @@
     cursor:pointer; font-size:12px;
   }
   .entry-edit .remove-entry:hover{color:var(--accent);}
+  .share-wrap{margin-top:8px;}
+  .share-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;}
+  .share-chip{
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:11.5px; border:1px solid var(--line-strong); border-radius:14px;
+    padding:4px 10px 4px 8px; cursor:pointer; background:#fff; user-select:none;
+  }
+  .share-chip input{width:auto; margin:0; accent-color:var(--navy);}
+  .share-chip.origin{background:#eef2f7; border-color:var(--navy); color:var(--navy-deep); cursor:default;}
   .modal-footer{
     display:flex; justify-content:space-between; align-items:center;
     margin-top:12px; gap:8px;
@@ -340,6 +351,10 @@
     </div>
     <div class="action-group">
       <button class="btn small" id="addRowBtn">+ 행 추가(수정)</button>
+      <button class="btn small" id="connectDataDirBtn">data 폴더 연결</button>
+      <span class="dir-status" id="dirStatus"></span>
+      <button class="btn small" id="connectGithubBtn">GitHub 연결</button>
+      <span class="dir-status" id="ghStatus"></span>
       <button class="btn small" id="backupBtn">데이터 백업</button>
       <button class="btn small" id="importBtn">불러오기</button>
       <input type="file" id="importFile" accept="application/json" style="display:none;">
@@ -373,11 +388,44 @@
 
   <footer class="hint">
     <strong>내보내기</strong>를 누르면 현재 보고 있는 주간 일정표가 PDF 파일로 저장됩니다.
-    이 브라우저 창을 열어 둔 동안 입력한 내용은 메모리에 남아 있지만, 새로고침 전에 <strong>데이터 백업</strong>으로 JSON 파일을 저장해 두면
-    다음에 <strong>불러오기</strong>로 그대로 이어서 사용할 수 있습니다.
+    일정을 편집하고 <strong>저장 및 닫기</strong>를 누르면 해당 주(week)의 JSON 파일이 자동으로 만들어집니다 —
+    <strong>data 폴더 연결</strong>을 한 번 눌러 폴더를 선택해두면(Chrome/Edge PC) 그 폴더의 <code>data</code> 하위 폴더에 매번 덮어써 저장되고,
+    지원하지 않는 브라우저에서는 다운로드 폴더의 <code>data</code> 하위 폴더로 자동 저장됩니다.
+    새로고침 전에 <strong>데이터 백업</strong>으로 전체 데이터를 JSON으로 저장해 두면 <strong>불러오기</strong>로 그대로 이어서 사용할 수 있습니다.
   </footer>
 </div>
 <div id="pdfSpinner" class="pdf-overlay"><div class="pdf-box">PDF 생성 중…</div></div>
+
+<!-- GitHub connect modal -->
+<div class="backdrop" id="ghBackdrop">
+  <div class="modal">
+    <h3>GitHub 저장 연결</h3>
+    <div class="modal-sub">토큰은 이 브라우저 세션에만 보관되며 파일이나 서버 어디에도 저장되지 않습니다. repo 쓰기 권한만 가진 토큰을 권장합니다.</div>
+    <div class="entry-edit">
+      <label class="fld-label">저장소 (owner/repo)</label>
+      <input type="text" id="ghRepo" placeholder="예: myid/schedule-data">
+    </div>
+    <div class="entry-edit">
+      <label class="fld-label">브랜치</label>
+      <input type="text" id="ghBranch" placeholder="main" value="main">
+    </div>
+    <div class="entry-edit">
+      <label class="fld-label">저장 경로 (폴더)</label>
+      <input type="text" id="ghPath" placeholder="data" value="data">
+    </div>
+    <div class="entry-edit">
+      <label class="fld-label">Personal Access Token (repo 쓰기 권한)</label>
+      <input type="password" id="ghToken" placeholder="ghp_...">
+    </div>
+    <div class="modal-footer">
+      <span></span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn ghost small" id="ghCancelBtn">취소</button>
+        <button class="btn primary small" id="ghSaveBtn">연결</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Cell edit modal -->
 <div class="backdrop" id="backdrop">
@@ -720,6 +768,37 @@
     return entries[weekKey][catId][dayIndex];
   }
 
+  // ---------- shared entries: apply one entry to multiple rows (교육장/교육지원국장/교육행정국장 등) ----------
+  function findGroupEntry(weekKey, catId, dayIndex, groupId){
+    return entries[weekKey][catId][dayIndex].find(e=> e.groupId===groupId);
+  }
+  function groupMemberCatIds(weekKey, dayIndex, groupId){
+    return categories.filter(c=> !!findGroupEntry(weekKey, c.id, dayIndex, groupId)).map(c=>c.id);
+  }
+  function propagateGroupContent(weekKey, dayIndex, groupId, originCatId, data){
+    categories.forEach(cat=>{
+      if(cat.id===originCatId) return;
+      const e = findGroupEntry(weekKey, cat.id, dayIndex, groupId);
+      if(e){ e.time = data.time; e.title = data.title; e.loc = data.loc; }
+    });
+  }
+  function toggleGroupMember(weekKey, dayIndex, groupId, catId, on, data){
+    const arr = entries[weekKey][catId][dayIndex];
+    const idx = arr.findIndex(e=> e.groupId===groupId);
+    if(on && idx<0){
+      arr.push({id:uid(), groupId, time:data.time, title:data.title, loc:data.loc});
+    } else if(!on && idx>=0){
+      arr.splice(idx,1);
+    }
+  }
+  function removeGroupEverywhere(weekKey, dayIndex, groupId){
+    categories.forEach(cat=>{
+      const arr = entries[weekKey][cat.id][dayIndex];
+      const idx = arr.findIndex(e=> e.groupId===groupId);
+      if(idx>=0) arr.splice(idx,1);
+    });
+  }
+
   function renderEntryList(){
     const list = currentEntries();
     entryList.innerHTML = "";
@@ -730,6 +809,7 @@
       entryList.appendChild(p);
     }
     list.forEach((ent, idx)=>{
+      if(!ent.groupId) ent.groupId = ent.id; // backward compatibility for older data
       const box = document.createElement("div");
       box.className = "entry-edit";
 
@@ -738,7 +818,12 @@
       rm.type = "button";
       rm.textContent = "✕ 삭제";
       rm.addEventListener("click", ()=>{
-        list.splice(idx,1);
+        const others = groupMemberCatIds(editing.weekKey, editing.dayIndex, ent.groupId).filter(id=>id!==editing.catId);
+        if(others.length>0){
+          const names = categories.filter(c=>others.includes(c.id)).map(c=>c.label).join(", ");
+          if(!confirm(`이 일정은 ${names}에도 함께 적용되어 있습니다. 모두 삭제할까요?`)) return;
+        }
+        removeGroupEverywhere(editing.weekKey, editing.dayIndex, ent.groupId);
         renderEntryList();
         liveSave();
       });
@@ -774,6 +859,36 @@
       row1.querySelector(".title-fld").addEventListener("input", e=>{ ent.title = e.target.value; liveSave(); });
       row2.querySelector(".loc-fld").addEventListener("input", e=>{ ent.loc = e.target.value; liveSave(); });
 
+      // "적용 대상" — apply the same entry to other rows (e.g. 교육장/교육지원국장/교육행정국장)
+      if(categories.length>1){
+        const shareWrap = document.createElement("div");
+        shareWrap.className = "share-wrap";
+        const shareLbl = document.createElement("div");
+        shareLbl.className = "fld-label";
+        shareLbl.textContent = "적용 대상 (공통 일정)";
+        shareWrap.appendChild(shareLbl);
+        const chips = document.createElement("div");
+        chips.className = "share-chips";
+        categories.forEach(cat=>{
+          const isOrigin = cat.id===editing.catId;
+          const chip = document.createElement("label");
+          chip.className = "share-chip" + (isOrigin ? " origin" : "");
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = isOrigin ? true : !!findGroupEntry(editing.weekKey, cat.id, editing.dayIndex, ent.groupId);
+          cb.disabled = isOrigin;
+          cb.addEventListener("change", ()=>{
+            toggleGroupMember(editing.weekKey, editing.dayIndex, ent.groupId, cat.id, cb.checked, {time:ent.time, title:ent.title, loc:ent.loc});
+            liveSave();
+          });
+          chip.appendChild(cb);
+          chip.appendChild(document.createTextNode(cat.label));
+          chips.appendChild(chip);
+        });
+        shareWrap.appendChild(chips);
+        box.appendChild(shareWrap);
+      }
+
       entryList.appendChild(box);
     });
   }
@@ -781,7 +896,8 @@
   function escapeAttr(s){ return String(s).replace(/"/g,"&quot;"); }
 
   document.getElementById("addEntryBtn").addEventListener("click", ()=>{
-    currentEntries().push({id:uid(), time:"", title:"", loc:""});
+    const newId = uid();
+    currentEntries().push({id:newId, groupId:newId, time:"", title:"", loc:""});
     renderEntryList();
     liveSave();
   });
@@ -793,6 +909,12 @@
   function liveSave(){
     clearTimeout(saveTimer);
     saveTimer = setTimeout(()=>{
+      if(editing){
+        currentEntries().forEach(ent=>{
+          if(!ent.groupId) ent.groupId = ent.id;
+          propagateGroupContent(editing.weekKey, editing.dayIndex, ent.groupId, editing.catId, {time:ent.time, title:ent.title, loc:ent.loc});
+        });
+      }
       render();              // reflect changes in the table behind the modal right away
       flashSaved();
     }, 250);
@@ -805,18 +927,179 @@
   }
 
   function closeModal(){
-    // normalize any time left unblurred, drop fully-empty entries, then sort by time
-    const list = currentEntries()
-      .map(e=> ({...e, time: normalizeTime(e.time)}))
-      .filter(e=> (e.title && e.title.trim()) || (e.time && e.time.trim()) || (e.loc && e.loc.trim()));
-    editing.weekKey && (entries[editing.weekKey][editing.catId][editing.dayIndex] = sortByTime(list));
+    // normalize any time left unblurred, drop fully-empty entries (and their shared copies), then sort by time
+    const raw = currentEntries().map(e=> ({...e, time: normalizeTime(e.time), groupId: e.groupId || e.id}));
+    const kept = [];
+    raw.forEach(e=>{
+      const hasContent = (e.title && e.title.trim()) || (e.time && e.time.trim()) || (e.loc && e.loc.trim());
+      if(hasContent) kept.push(e);
+      else removeGroupEverywhere(editing.weekKey, editing.dayIndex, e.groupId);
+    });
+    const savedWeekKey = editing.weekKey;
+    entries[editing.weekKey][editing.catId][editing.dayIndex] = sortByTime(kept);
     backdrop.classList.remove("open");
     editing = null;
     render();
+    saveWeekJsonFile(savedWeekKey); // write data/<week>.json locally (fire-and-forget)
+    saveWeekToGithub(savedWeekKey); // push to GitHub if connected (fire-and-forget)
   }
   document.getElementById("closeModalBtn").addEventListener("click", closeModal);
   backdrop.addEventListener("click", (e)=>{ if(e.target===backdrop) closeModal(); });
   document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && backdrop.classList.contains("open")) closeModal(); });
+
+  // ---------- data/ folder: write a JSON file for the week on every save ----------
+  const dirStatusEl = document.getElementById("dirStatus");
+  let dataDirHandle = null;
+  let fsApiDeclined = false;
+
+  function setDirStatus(text, connected){
+    dirStatusEl.textContent = text;
+    dirStatusEl.classList.toggle("connected", !!connected);
+  }
+
+  async function ensureDataDir(promptIfNeeded){
+    if(dataDirHandle) return dataDirHandle;
+    if(!window.showDirectoryPicker){ return null; } // unsupported browser (Safari/Firefox/mobile)
+    if(fsApiDeclined && !promptIfNeeded) return null;
+    try{
+      const picked = await window.showDirectoryPicker({id:"weekly-schedule-data", mode:"readwrite"});
+      // if the user picked a parent folder, create/use a "data" subfolder inside it;
+      // if they picked (or created) a folder already named "data", use it directly.
+      const handle = picked.name === "data" ? picked : await picked.getDirectoryHandle("data", {create:true});
+      dataDirHandle = handle;
+      fsApiDeclined = false;
+      setDirStatus(`연결됨: ${handle.name}/`, true);
+      return dataDirHandle;
+    }catch(err){
+      fsApiDeclined = true; // user cancelled — don't keep re-prompting on every save
+      return null;
+    }
+  }
+
+  document.getElementById("connectDataDirBtn").addEventListener("click", async ()=>{
+    if(!window.showDirectoryPicker){
+      alert("이 브라우저는 폴더에 직접 저장하는 기능(File System Access API)을 지원하지 않습니다 (Chrome/Edge PC 브라우저에서 가능). 대신 '저장 및 닫기'를 누르면 다운로드 폴더의 data 하위 폴더로 파일이 저장됩니다.");
+      return;
+    }
+    const dir = await ensureDataDir(true);
+    if(!dir) setDirStatus("연결 취소됨", false);
+  });
+
+  async function saveWeekJsonFile(weekKey){
+    const payload = {weekStart: weekKey, categories, entries: {[weekKey]: entries[weekKey]}};
+    const json = JSON.stringify(payload, null, 2);
+    const filename = `${weekKey}.json`;
+
+    const dir = await ensureDataDir(false);
+    if(dir){
+      try{
+        const fileHandle = await dir.getFileHandle(filename, {create:true});
+        const writable = await fileHandle.createWritable();
+        await writable.write(json);
+        await writable.close();
+        setDirStatus(`저장됨: data/${filename}`, true);
+        return;
+      }catch(err){
+        console.error(err);
+        // fall through to the download fallback below
+      }
+    }
+
+    // Fallback for browsers without folder access (Safari, Firefox, mobile):
+    // most Chromium browsers will auto-create a "data" subfolder under Downloads.
+    const blob = new Blob([json], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `data/${filename}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- GitHub: push the week's JSON straight into a repo via the Contents API ----------
+  let ghConfig = null; // {owner, repo, branch, path, token} — kept in memory only, never persisted
+
+  function setGhStatus(text, ok){
+    const el = document.getElementById("ghStatus");
+    el.textContent = text;
+    el.classList.toggle("connected", !!ok);
+  }
+
+  function utf8ToBase64(str){
+    const bytes = new TextEncoder().encode(str);
+    let binary = "";
+    bytes.forEach(b=> binary += String.fromCharCode(b));
+    return btoa(binary);
+  }
+
+  const ghBackdrop = document.getElementById("ghBackdrop");
+  document.getElementById("connectGithubBtn").addEventListener("click", ()=>{
+    if(ghConfig){
+      document.getElementById("ghRepo").value = `${ghConfig.owner}/${ghConfig.repo}`;
+      document.getElementById("ghBranch").value = ghConfig.branch;
+      document.getElementById("ghPath").value = ghConfig.path;
+    }
+    ghBackdrop.classList.add("open");
+  });
+  document.getElementById("ghCancelBtn").addEventListener("click", ()=> ghBackdrop.classList.remove("open"));
+  ghBackdrop.addEventListener("click", (e)=>{ if(e.target===ghBackdrop) ghBackdrop.classList.remove("open"); });
+
+  document.getElementById("ghSaveBtn").addEventListener("click", ()=>{
+    const repoRaw = document.getElementById("ghRepo").value.trim();
+    const [owner, repo] = repoRaw.split("/").map(s=>s && s.trim());
+    const branch = document.getElementById("ghBranch").value.trim() || "main";
+    const path = document.getElementById("ghPath").value.trim().replace(/^\/+|\/+$/g,"") || "data";
+    const token = document.getElementById("ghToken").value.trim();
+    if(!owner || !repo || !token){
+      alert("저장소는 'owner/repo' 형식으로, 토큰도 함께 입력해주세요.");
+      return;
+    }
+    ghConfig = {owner, repo, branch, path, token};
+    ghBackdrop.classList.remove("open");
+    setGhStatus(`연결됨: ${owner}/${repo}`, true);
+  });
+
+  async function saveWeekToGithub(weekKey){
+    if(!ghConfig) return;
+    const payload = {weekStart: weekKey, categories, entries: {[weekKey]: entries[weekKey]}};
+    const json = JSON.stringify(payload, null, 2);
+    const filePath = `${ghConfig.path}/${weekKey}.json`;
+    const api = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${filePath}`;
+    const headers = {
+      "Authorization": `token ${ghConfig.token}`,
+      "Accept": "application/vnd.github+json"
+    };
+    try{
+      let sha = null;
+      const getRes = await fetch(`${api}?ref=${encodeURIComponent(ghConfig.branch)}`, {headers});
+      if(getRes.status===200){
+        sha = (await getRes.json()).sha;
+      } else if(getRes.status!==404){
+        throw new Error(`파일 조회 실패 (${getRes.status})`);
+      }
+      const body = {
+        message: `주간일정표 저장: ${weekKey}`,
+        content: utf8ToBase64(json),
+        branch: ghConfig.branch
+      };
+      if(sha) body.sha = sha;
+      const putRes = await fetch(api, {
+        method: "PUT",
+        headers: {...headers, "Content-Type":"application/json"},
+        body: JSON.stringify(body)
+      });
+      if(!putRes.ok){
+        const errBody = await putRes.json().catch(()=>({}));
+        throw new Error(errBody.message || `저장 실패 (${putRes.status})`);
+      }
+      setGhStatus(`GitHub 저장됨: ${ghConfig.path}/${weekKey}.json`, true);
+    }catch(err){
+      console.error(err);
+      setGhStatus(`GitHub 저장 실패: ${err.message}`, false);
+    }
+  }
 
   // ---------- seed with the uploaded sheet's sample data ----------
   (function seed(){

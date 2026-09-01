@@ -159,7 +159,7 @@
     font-weight:700;
     border:1px solid var(--line);
     background:#fff;
-    text-align:left;
+    text-align:center;
   }
   thead tr.date-row td.sun-date{color:var(--sun-red);}
   thead tr.date-row td.sat-date{color:var(--sat-blue);}
@@ -558,7 +558,7 @@
     return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
   }
   function dateCellLabel(d){
-    return d.getDate()===1 ? `${d.getMonth()+1}/1` : String(d.getDate());
+    return `${d.getMonth()+1}/${d.getDate()}`;
   }
   function uid(){ return 'e'+Math.random().toString(36).slice(2,9); }
 

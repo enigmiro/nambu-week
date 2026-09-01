@@ -10,6 +10,8 @@
     --navy-deep:#16283f;
     --sat-blue:#5b7fb5;
     --sat-blue-bg:#e4ebf6;
+    --sun-red:#c1502e;
+    --sun-red-bg:#f7e9e5;
     --paper:#fbfaf7;
     --line:#d9d5cb;
     --line-strong:#b9b3a4;
@@ -114,9 +116,10 @@
     width:100%;
     border-collapse:collapse;
     table-layout:fixed;
-    min-width:760px;
+    min-width:860px;
   }
   col.label-col{width:78px;}
+  col.weekend-col{width:64px;}
 
   thead th{
     padding:9px 6px;
@@ -128,6 +131,7 @@
     border:1px solid var(--paper);
   }
   thead th.dow-label{background:var(--navy-deep); position:sticky; left:0; z-index:3;}
+  thead th.dow-sun{background:var(--sun-red);}
   thead th.dow-sat{background:var(--sat-blue);}
 
   tbody tr.date-row td{
@@ -145,6 +149,7 @@
     font-size:12px;
     position:sticky; left:0; z-index:2;
   }
+  tbody tr.date-row td.sun-date{color:var(--sun-red);}
   tbody tr.date-row td.sat-date{color:var(--sat-blue);}
   tbody tr.date-row td.is-today{background:var(--today-glow);}
 
@@ -154,13 +159,17 @@
     padding:0;
     background:#fff;
   }
+  tbody tr.cat-row td.sun-col{background:#fdfaf9;}
+  tbody tr.cat-row td.sat-col{background:#f9fafc;}
   tbody tr.cat-row:hover td{background:var(--row-hover);}
+  tbody tr.cat-row td.row-label{vertical-align:middle;} /* overrides the general td's vertical-align:top above */
 
   .row-label{
     padding:10px 6px;
     text-align:center;
     font-size:13px;
     font-weight:700;
+    line-height:1.4;
     color:var(--ink);
     background:#f1efe8;
     position:sticky; left:0; z-index:2;
@@ -365,7 +374,9 @@
     <table id="schedTable">
       <colgroup>
         <col class="label-col">
-        <col><col><col><col><col><col>
+        <col><col><col><col><col>
+        <col class="weekend-col">
+        <col class="weekend-col">
       </colgroup>
       <thead>
         <tr>
@@ -376,6 +387,7 @@
           <th>목·THU</th>
           <th>금·FRI</th>
           <th class="dow-sat">토·SAT</th>
+          <th class="dow-sun">일·SUN</th>
         </tr>
       </thead>
       <tbody id="tblBody">
@@ -443,7 +455,7 @@
 (function(){
   "use strict";
 
-  const DOW = ["월","화","수","목","금","토"]; // Mon..Sat columns shown in the grid
+  const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
 
   // ---------- state ----------
   let categories = [
@@ -475,8 +487,9 @@
     return `${y}-${m}-${day}`;
   }
   function weekDates(start){
+    // returns 7 dates for the week: index 0 = Monday ("start"), ... index 6 = Sunday (the day after Saturday).
     const out=[];
-    for(let i=0;i<6;i++) out.push(addDays(start,i));
+    for(let i=0;i<7;i++) out.push(addDays(start,i));
     return out;
   }
   function sameDay(a,b){
@@ -529,7 +542,7 @@
   function ensureWeek(key){
     if(!entries[key]) entries[key] = {};
     categories.forEach(c=>{
-      if(!entries[key][c.id]) entries[key][c.id] = {0:[],1:[],2:[],3:[],4:[],5:[]};
+      if(!entries[key][c.id]) entries[key][c.id] = {0:[],1:[],2:[],3:[],4:[],5:[],6:[]};
     });
   }
 
@@ -546,14 +559,13 @@
     const today = new Date();
 
     // header month/year
-    const startM = dates[0].getMonth(), endM = dates[5].getMonth();
+    const startM = dates[0].getMonth(), endM = dates[6].getMonth();
     monthNum.textContent = startM===endM ? `${startM+1}월` : `${startM+1}월~${endM+1}월`;
-    yearNum.textContent = dates[0].getFullYear() === dates[5].getFullYear()
+    yearNum.textContent = dates[0].getFullYear() === dates[6].getFullYear()
       ? dates[0].getFullYear()
-      : `${dates[0].getFullYear()} / ${dates[5].getFullYear()}`;
+      : `${dates[0].getFullYear()} / ${dates[6].getFullYear()}`;
 
-    const opt = {month:"long", day:"numeric"};
-    weekRange.textContent = `${dates[0].getMonth()+1}.${dates[0].getDate()} (월) – ${dates[5].getMonth()+1}.${dates[5].getDate()} (토)`;
+    weekRange.textContent = `${dates[0].getMonth()+1}.${dates[0].getDate()} (월) – ${dates[6].getMonth()+1}.${dates[6].getDate()} (일)`;
 
     tblBody.innerHTML = "";
 
@@ -564,6 +576,7 @@
       const td = document.createElement("td");
       td.textContent = dateCellLabel(d);
       if(i===5) td.classList.add("sat-date");
+      if(i===6) td.classList.add("sun-date");
       if(sameDay(d,today)) td.classList.add("is-today");
       dateRow.appendChild(td);
     });
@@ -578,7 +591,12 @@
       labelTd.className = "row-label" + (cat.locked ? " locked" : "");
       labelTd.contentEditable = cat.locked ? "false" : "true";
       labelTd.spellcheck = false;
-      labelTd.textContent = cat.label;
+      if(cat.locked && cat.label.endsWith("국장") && cat.label.length>2){
+        // wrap "…국장" labels onto two lines (e.g. "교육지원" / "국장") so they read cleanly in a narrow column
+        labelTd.innerHTML = `${escapeHtml(cat.label.slice(0,-2))}<br>국장`;
+      } else {
+        labelTd.textContent = cat.label;
+      }
       if(cat.locked){
         labelTd.title = "고정된 항목입니다 (수정 불가)";
       } else {
@@ -602,8 +620,10 @@
       }
       tr.appendChild(labelTd);
 
-      for(let day=0; day<6; day++){
+      for(let day=0; day<7; day++){
         const td = document.createElement("td");
+        if(day===5) td.classList.add("sat-col");
+        if(day===6) td.classList.add("sun-col");
         const cellEntries = sortByTime(entries[key][cat.id][day]);
         const wrap = document.createElement("div");
         wrap.className = "day-cell" + (cellEntries.length===0 ? " empty" : "");
@@ -647,9 +667,18 @@
   }
 
   // ---------- navigation ----------
-  document.getElementById("prevWeek").addEventListener("click", ()=>{ weekStart = addDays(weekStart,-7); render(); });
-  document.getElementById("nextWeek").addEventListener("click", ()=>{ weekStart = addDays(weekStart,7); render(); });
-  document.getElementById("gotoToday").addEventListener("click", ()=>{ weekStart = mondayOf(new Date()); render(); });
+  async function goToWeek(newStart){
+    weekStart = newStart;
+    render(); // show immediately with whatever we already have
+    const key = iso(weekStart);
+    if(ghConfig && !loadedFromGithubWeeks.has(key)){
+      const found = await loadWeekFromGithub(key);
+      if(found) render(); // refresh with the data pulled from GitHub
+    }
+  }
+  document.getElementById("prevWeek").addEventListener("click", ()=> goToWeek(addDays(weekStart,-7)));
+  document.getElementById("nextWeek").addEventListener("click", ()=> goToWeek(addDays(weekStart,7)));
+  document.getElementById("gotoToday").addEventListener("click", ()=> goToWeek(mondayOf(new Date())));
 
   document.getElementById("addRowBtn").addEventListener("click", ()=>{
     const label = prompt("새 행 이름을 입력하세요 (예: 유치원, 행정실 등)");
@@ -664,7 +693,7 @@
   // ---------- PDF export (내보내기) ----------
   function pdfFilename(){
     const dates = weekDates(weekStart);
-    const s = dates[0], e = dates[5];
+    const s = dates[0], e = dates[6];
     const range = `${s.getMonth()+1}. ${s.getDate()}.~${e.getMonth()+1}. ${e.getDate()}.`;
     let org = document.getElementById("schoolName").textContent
       .replace(/\s*주간\s*일정표\s*$/,"")
@@ -753,6 +782,9 @@
 
   function openEditor(weekKey, catId, dayIndex, catLabel, date){
     editing = {weekKey, catId, dayIndex};
+    // sort by time up front so the editor always opens showing the same time order as the table
+    // (covers entries that arrived out of order via the "공통 일정" group-sync, imports, etc.)
+    entries[weekKey][catId][dayIndex] = sortByTime(entries[weekKey][catId][dayIndex]);
     modalTitle.textContent = `${catLabel} · ${DOW[dayIndex]}요일`;
     modalSub.textContent = `${date.getMonth()+1}월 ${date.getDate()}일 일정`;
     renderEntryList();
@@ -931,15 +963,29 @@
       if(hasContent) kept.push(e);
       else removeGroupEverywhere(editing.weekKey, editing.dayIndex, e.groupId);
     });
-    const savedWeekKey = editing.weekKey;
+    const savedWeekKey = editing.weekKey, savedDayIndex = editing.dayIndex;
     entries[editing.weekKey][editing.catId][editing.dayIndex] = sortByTime(kept);
+    // also re-sort any other rows that received a copy of these entries via "공통 일정" (shared entries),
+    // so every affected cell — not just the one just edited — stays in time order
+    categories.forEach(cat=>{
+      if(cat.id===editing.catId) return;
+      entries[savedWeekKey][cat.id][savedDayIndex] = sortByTime(entries[savedWeekKey][cat.id][savedDayIndex]);
+    });
     backdrop.classList.remove("open");
     editing = null;
     render();
     saveWeekToGithub(savedWeekKey); // push to GitHub if connected (fire-and-forget)
   }
   document.getElementById("closeModalBtn").addEventListener("click", closeModal);
-  backdrop.addEventListener("click", (e)=>{ if(e.target===backdrop) closeModal(); });
+  // Only close when BOTH the mousedown and the click landed on the backdrop itself —
+  // dragging to select text inside the modal can end (mouseup) just outside the modal box,
+  // which would otherwise register as a click on the backdrop and close the modal mid-drag.
+  let backdropMouseDownOnSelf = false;
+  backdrop.addEventListener("mousedown", (e)=>{ backdropMouseDownOnSelf = (e.target===backdrop); });
+  backdrop.addEventListener("click", (e)=>{
+    if(e.target===backdrop && backdropMouseDownOnSelf) closeModal();
+    backdropMouseDownOnSelf = false;
+  });
   document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && backdrop.classList.contains("open")) closeModal(); });
 
   // ---------- GitHub: push the week's JSON straight into a repo via the Contents API ----------
@@ -957,6 +1003,41 @@
     bytes.forEach(b=> binary += String.fromCharCode(b));
     return btoa(binary);
   }
+  function base64ToUtf8(b64){
+    const binary = atob(b64.replace(/\n/g, ""));
+    const bytes = new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  // Weeks we've already pulled from GitHub in this session — avoids re-fetching (and possibly
+  // clobbering unsaved edits) every time the same week is revisited.
+  const loadedFromGithubWeeks = new Set();
+
+  async function loadWeekFromGithub(weekKey){
+    if(!ghConfig) return false;
+    const filePath = `${ghConfig.path}/${weekKey}.json`;
+    const api = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${filePath}`;
+    const headers = {
+      "Authorization": `token ${ghConfig.token}`,
+      "Accept": "application/vnd.github+json"
+    };
+    try{
+      const res = await fetch(`${api}?ref=${encodeURIComponent(ghConfig.branch)}`, {headers, cache:"no-store"});
+      loadedFromGithubWeeks.add(weekKey);
+      if(res.status===404) return false; // nothing saved for this week yet — keep what's already showing
+      if(!res.ok) throw new Error(`불러오기 실패 (${res.status})`);
+      const data = await res.json();
+      const payload = JSON.parse(base64ToUtf8(data.content));
+      if(payload.categories) categories = payload.categories;
+      if(payload.entries && payload.entries[weekKey]) entries[weekKey] = payload.entries[weekKey];
+      return true;
+    }catch(err){
+      console.error(err);
+      setGhStatus(`GitHub 불러오기 실패: ${err.message}`, false);
+      return false;
+    }
+  }
 
   const ghBackdrop = document.getElementById("ghBackdrop");
   document.getElementById("connectGithubBtn").addEventListener("click", ()=>{
@@ -968,9 +1049,14 @@
     ghBackdrop.classList.add("open");
   });
   document.getElementById("ghCancelBtn").addEventListener("click", ()=> ghBackdrop.classList.remove("open"));
-  ghBackdrop.addEventListener("click", (e)=>{ if(e.target===ghBackdrop) ghBackdrop.classList.remove("open"); });
+  let ghBackdropMouseDownOnSelf = false;
+  ghBackdrop.addEventListener("mousedown", (e)=>{ ghBackdropMouseDownOnSelf = (e.target===ghBackdrop); });
+  ghBackdrop.addEventListener("click", (e)=>{
+    if(e.target===ghBackdrop && ghBackdropMouseDownOnSelf) ghBackdrop.classList.remove("open");
+    ghBackdropMouseDownOnSelf = false;
+  });
 
-  document.getElementById("ghSaveBtn").addEventListener("click", ()=>{
+  document.getElementById("ghSaveBtn").addEventListener("click", async ()=>{
     const repoRaw = document.getElementById("ghRepo").value.trim();
     const [owner, repo] = repoRaw.split("/").map(s=>s && s.trim());
     const branch = document.getElementById("ghBranch").value.trim() || "main";
@@ -982,7 +1068,11 @@
     }
     ghConfig = {owner, repo, branch, path, token};
     ghBackdrop.classList.remove("open");
-    setGhStatus(`연결됨: ${owner}/${repo}`, true);
+    setGhStatus(`연결됨: ${owner}/${repo} — 불러오는 중…`, true);
+    const key = iso(weekStart);
+    const found = await loadWeekFromGithub(key);
+    render();
+    setGhStatus(found ? `연결됨: ${owner}/${repo} (저장된 데이터 불러옴)` : `연결됨: ${owner}/${repo}`, true);
   });
 
   // Saves for the same week must run one-at-a-time; overlapping saves cause a "sha does not match"

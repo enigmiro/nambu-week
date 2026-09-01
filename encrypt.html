@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encrypt</title>
+<style>
+  :root{
+    --navy:#1f3a5f; --navy-deep:#16283f; --paper:#fbfaf7; --line:#d9d5cb;
+    --line-strong:#b9b3a4; --ink:#242220; --ink-soft:#6b665d; --accent:#c1502e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    background:#eeece5; color:var(--ink); margin:0; padding:28px 16px 60px;
+  }
+  .sheet{max-width:640px; margin:0 auto; background:var(--paper); border:1px solid var(--line-strong); padding:28px 30px 34px; border-radius:8px;}
+  h1{font-size:20px; margin:0 0 6px;}
+  .sub{font-size:13px; color:var(--ink-soft); margin:0 0 22px; line-height:1.6;}
+  .warn{
+    background:#fff3cf; border:1px solid #e8d48a; color:#5c4a12;
+    font-size:12.5px; padding:10px 14px; border-radius:6px; margin-bottom:22px; line-height:1.6;
+  }
+  label{font-size:12.5px; color:var(--ink-soft); display:block; margin:14px 0 4px; font-weight:600;}
+  input{
+    width:100%; font-family:inherit; font-size:14px;
+    border:1px solid var(--line-strong); border-radius:5px; padding:9px 11px;
+  }
+  .btn{
+    margin-top:20px; width:100%; font-family:inherit; font-size:14px; font-weight:700;
+    background:var(--navy); color:#fff; border:none; border-radius:6px; padding:12px; cursor:pointer;
+  }
+  .btn:hover{background:var(--navy-deep);}
+  .btn:disabled{background:#b9b3a4; cursor:default;}
+  .result{
+    margin-top:22px; display:none;
+  }
+  .result.show{display:block;}
+  .result textarea{
+    width:100%; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px;
+    border:1px solid var(--line-strong); border-radius:5px; padding:10px; min-height:110px;
+    background:#fff; resize:vertical;
+  }
+  .copy-btn{margin-top:8px; font-size:12.5px; padding:7px 12px; border-radius:5px; border:1px solid var(--line-strong); background:#fff; cursor:pointer;}
+  .copy-btn:hover{background:#f4f1ea;}
+  .status{font-size:12px; margin-top:8px; color:#3f8a5c; min-height:16px;}
+  .status.error{color:var(--accent);}
+  .offline-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:#3f8a5c;
+    background:#e6f3ea; border:1px solid #a9d4b6; padding:4px 10px; border-radius:12px; margin-bottom:16px;
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="offline-badge">🔒 네트워크 요청 없음 — 이 페이지는 완전히 오프라인으로 동작합니다</div>
+  <h1>GitHub 토큰 암호화 도구</h1>
+  <p class="sub">주간일정표 앱에 "자동 연결"을 설정하기 위해, 토큰을 암호로 잠가서 안전하게 코드에 넣을 수 있는 형태로 바꿔줍니다. 이 페이지는 어디에도 데이터를 전송하지 않으며, 브라우저를 닫으면 입력한 내용은 완전히 사라집니다.</p>
+
+  <div class="warn">
+    ⚠️ 여기서 만든 결과(암호화된 문자열)는 주간일정표 HTML 파일에만 붙여넣으세요. 이 페이지 자체나 원본 토큰을 다른 곳(채팅, 이메일 등)에 붙여넣지 마세요.
+  </div>
+
+  <label for="token">GitHub Personal Access Token</label>
+  <input type="password" id="token" placeholder="github_pat_... 또는 ghp_...">
+
+  <label for="pass1">암호(passphrase) — 앱을 열 때마다 입력할 값</label>
+  <input type="password" id="pass1" placeholder="본인만 아는 암호를 정하세요">
+
+  <label for="pass2">암호 확인</label>
+  <input type="password" id="pass2" placeholder="암호를 한 번 더 입력하세요">
+
+  <button class="btn" id="encryptBtn">암호화하기</button>
+  <div class="status" id="status"></div>
+
+  <div class="result" id="result">
+    <label>아래 결과를 복사해서, 주간일정표 파일의 안내된 위치에 붙여넣으세요</label>
+    <textarea id="output" readonly></textarea>
+    <button class="copy-btn" id="copyBtn">복사</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  function bufToB64(buf){
+    let binary = "";
+    new Uint8Array(buf).forEach(b=> binary += String.fromCharCode(b));
+    return btoa(binary);
+  }
+
+  async function deriveKey(passphrase, saltBytes){
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw", enc.encode(passphrase), {name:"PBKDF2"}, false, ["deriveKey"]
+    );
+    return crypto.subtle.deriveKey(
+      {name:"PBKDF2", salt: saltBytes, iterations: 150000, hash:"SHA-256"},
+      keyMaterial,
+      {name:"AES-GCM", length:256},
+      false,
+      ["encrypt"]
+    );
+  }
+
+  async function encryptToken(token, passphrase){
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveKey(passphrase, salt);
+    const enc = new TextEncoder();
+    const ciphertext = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, enc.encode(token));
+    return {
+      salt: bufToB64(salt),
+      iv: bufToB64(iv),
+      data: bufToB64(ciphertext)
+    };
+  }
+
+  const statusEl = document.getElementById("status");
+  const resultEl = document.getElementById("result");
+  const outputEl = document.getElementById("output");
+
+  document.getElementById("encryptBtn").addEventListener("click", async ()=>{
+    const token = document.getElementById("token").value.trim();
+    const pass1 = document.getElementById("pass1").value;
+    const pass2 = document.getElementById("pass2").value;
+
+    statusEl.textContent = "";
+    statusEl.classList.remove("error");
+    resultEl.classList.remove("show");
+
+    if(!token){
+      statusEl.textContent = "토큰을 입력해주세요.";
+      statusEl.classList.add("error");
+      return;
+    }
+    if(!pass1 || pass1.length < 4){
+      statusEl.textContent = "암호는 4자 이상으로 정해주세요 (기억하기 쉬우면서 남이 추측 못 할 값 추천).";
+      statusEl.classList.add("error");
+      return;
+    }
+    if(pass1 !== pass2){
+      statusEl.textContent = "암호 확인이 일치하지 않습니다.";
+      statusEl.classList.add("error");
+      return;
+    }
+
+    try{
+      const enc = await encryptToken(token, pass1);
+      const json = JSON.stringify(enc);
+      outputEl.value = json;
+      resultEl.classList.add("show");
+      statusEl.textContent = "암호화 완료. 아래 결과를 복사해서 주간일정표 파일에 붙여넣으세요.";
+    }catch(err){
+      console.error(err);
+      statusEl.textContent = "암호화 중 오류가 발생했습니다: " + err.message;
+      statusEl.classList.add("error");
+    }
+  });
+
+  document.getElementById("copyBtn").addEventListener("click", async ()=>{
+    try{
+      await navigator.clipboard.writeText(outputEl.value);
+      statusEl.textContent = "복사되었습니다.";
+      statusEl.classList.remove("error");
+    }catch(err){
+      outputEl.select();
+      statusEl.textContent = "자동 복사가 안 되면, 텍스트를 직접 선택해 복사해주세요.";
+    }
+  });
+})();
+</script>
+</body>
+</html>

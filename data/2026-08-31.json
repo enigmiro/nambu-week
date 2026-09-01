@@ -40,15 +40,10 @@
         "2": [
           {
             "id": "eqbkrxtg",
-            "time": "09:10",
-            "title": "월례조회",
-            "loc": "대회의실"
-          },
-          {
-            "id": "eyhy9ddk",
-            "time": "10:30",
-            "title": "학맞통지역위원회위촉식",
-            "loc": "상상플랫폼"
+            "time": "",
+            "title": "연가",
+            "loc": "",
+            "groupId": "eqbkrxtg"
           }
         ],
         "3": [],

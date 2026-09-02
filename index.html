@@ -510,7 +510,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"keIGo+NhCb008xJjGpq8GQ==","iv":"2W+BNeOeh3qp5iK3","data":"cwCa0Cp4DDb/HWfPc0y6pGHMCrtL/45t9UTOMCiScQ/MXcuNKhm0tHhMqcMLKJBvYS0cNzGS2FYvlpp/tdNP3nVFRoWu/4FBXicmgpO1DJ6tq2GrS7rctZcialhrurCQQf+53jixatA8TURjyw=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   // =====================================================================================
@@ -523,7 +523,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   // 비워두면 "편집하기" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
   // =====================================================================================
   const EDIT_AUTO_CONFIG = {
-    enc: {"salt":"a0aaVx9sIAQxEulugYBgUQ==","iv":"Uakt30W86Qhwfg31","data":"2KIxQM07IMzhR8gGqSy9Bs73gKBuuQtVgdQMDojrf4rWkEQn4uLz1ZJT6Fs8G40Dnu+XT52oR6p/0zLGtmc6AalyX7wS1iB8+1QkCDJQlXTukSY1ghUL5J287sxaSuZV4+dy4IjGg0TaVgtViA=="} // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -866,15 +866,54 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     return `<hp:tc name="" header="0" hasMargin="1" protect="0" editable="0" dirty="0" borderFillIDRef="${borderFillIDRef}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="${vertAlign||'CENTER'}" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${paras}</hp:subList><hp:cellAddr colAddr="${colAddr}" rowAddr="${rowAddr}"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="${width}" height="${height}"/><hp:cellMargin left="510" right="510" top="283" bottom="283"/></hp:tc>`;
   }
 
-  // Builds the whole <hp:tbl>...</hp:tbl> for the week currently on screen.
-  function buildHwpxScheduleTable(){
+  // A4 landscape (the original template's page was A4 portrait — width/height swapped here so
+  // the wide 8-column table fits one sheet), with tighter margins to maximize usable space.
+  const HWPX_PAGE_W = 84188, HWPX_PAGE_H = 59528, HWPX_MARGIN = 2600;
+  const HWPX_SECPR_LANDSCAPE = HWPX_SECPR_BLOCK.replace(
+    '<hp:pagePr landscape="NARROWLY" width="59528" height="84188" gutterType="LEFT_ONLY"><hp:margin header="0" footer="0" gutter="0" left="2834" right="2834" top="4251" bottom="2834"/></hp:pagePr>',
+    `<hp:pagePr landscape="WIDELY" width="${HWPX_PAGE_W}" height="${HWPX_PAGE_H}" gutterType="LEFT_ONLY"><hp:margin header="0" footer="0" gutter="0" left="${HWPX_MARGIN}" right="${HWPX_MARGIN}" top="${HWPX_MARGIN}" bottom="${HWPX_MARGIN}"/></hp:pagePr>`
+  );
+
+  // Builds the whole <hp:tbl>...</hp:tbl> for the week currently on screen, sized to fit a
+  // single A4 landscape sheet: row heights are computed from content, then scaled down together
+  // (with a readable floor) if the natural total would run past one page.
+  function buildHwpxScheduleTable(titleBlockHeight){
     const dates = weekDates(weekStart);
     const key = iso(weekStart);
+    const printableWidth = HWPX_PAGE_W - HWPX_MARGIN*2;   // ~78988
+    const printableHeight = HWPX_PAGE_H - HWPX_MARGIN*2 - titleBlockHeight; // budget left for the table
+
     const LABEL_W = 8500, WEEKDAY_W = 10800, WEEKEND_W = 8000;
-    const colWidths = [LABEL_W, WEEKDAY_W,WEEKDAY_W,WEEKDAY_W,WEEKDAY_W,WEEKDAY_W, WEEKEND_W,WEEKEND_W];
-    const headerH = 1600;
+    const rawColWidths = [LABEL_W, WEEKDAY_W,WEEKDAY_W,WEEKDAY_W,WEEKDAY_W,WEEKDAY_W, WEEKEND_W,WEEKEND_W];
+    const rawColTotal = rawColWidths.reduce((a,b)=>a+b,0);
+    const colScale = printableWidth / rawColTotal; // stretch/shrink columns to exactly fill the page width
+    const colWidths = rawColWidths.map(w=> Math.round(w*colScale));
+
+    const headerH = 1700;
     const rowCnt = 1 + categories.length;
     const colCnt = 8;
+
+    // natural (unscaled) height each category row would want, based on how much text it holds
+    function naturalRowHeight(cat){
+      const dayEntries = entries[key] && entries[key][cat.id] ? entries[key][cat.id] : {};
+      let maxLines = 1;
+      for(let d=0; d<7; d++){
+        const list = dayEntries[d] || [];
+        let lines = 0;
+        list.forEach(e=>{ lines += e.loc ? 2 : 1; });
+        maxLines = Math.max(maxLines, lines);
+      }
+      return Math.max(3200, 1400 + maxLines*1350);
+    }
+    const naturalHeights = categories.map(naturalRowHeight);
+    const naturalBodyTotal = naturalHeights.reduce((a,b)=>a+b,0);
+    const MIN_ROW_H = 2100;
+    const available = Math.max(0, printableHeight - headerH);
+    let rowScale = 1;
+    if(naturalBodyTotal > available && naturalBodyTotal > 0){
+      rowScale = Math.max(available / naturalBodyTotal, (MIN_ROW_H*categories.length) / naturalBodyTotal, 0.001);
+    }
+    const rowHeights = naturalHeights.map(h=> Math.max(MIN_ROW_H, Math.round(h*rowScale)));
 
     let rows = "";
 
@@ -889,16 +928,8 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     // one row per category
     categories.forEach((cat, rIdx)=>{
       const rowAddr = rIdx + 1;
+      const rowH = rowHeights[rIdx];
       const dayEntries = entries[key] && entries[key][cat.id] ? entries[key][cat.id] : {};
-      // rough height: base + extra per entry line, so multi-entry cells don't look cramped
-      let maxLines = 1;
-      for(let d=0; d<7; d++){
-        const list = dayEntries[d] || [];
-        let lines = 0;
-        list.forEach(e=>{ lines += e.loc ? 2 : 1; });
-        maxLines = Math.max(maxLines, lines);
-      }
-      const rowH = Math.max(3200, 1400 + maxLines*1350);
 
       let rowCells = hwpxCell(12, hwpxParaSimple(3, 19, cat.label, colWidths[0]), 0, rowAddr, colWidths[0], rowH, "CENTER");
       for(let d=0; d<7; d++){
@@ -909,27 +940,18 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     });
 
     const totalWidth = colWidths.reduce((a,b)=>a+b,0);
-    const totalHeight = headerH + categories.reduce((sum,cat)=>{
-      const dayEntries = entries[key] && entries[key][cat.id] ? entries[key][cat.id] : {};
-      let maxLines = 1;
-      for(let d=0; d<7; d++){
-        const list = dayEntries[d] || [];
-        let lines = 0;
-        list.forEach(e=>{ lines += e.loc ? 2 : 1; });
-        maxLines = Math.max(maxLines, lines);
-      }
-      return sum + Math.max(3200, 1400 + maxLines*1350);
-    }, 0);
+    const totalHeight = headerH + rowHeights.reduce((a,b)=>a+b,0);
 
     return `<hp:tbl id="${Math.floor(Math.random()*1000000000)}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="1" rowCnt="${rowCnt}" colCnt="${colCnt}" cellSpacing="0" borderFillIDRef="4" noAdjust="1"><hp:sz width="${totalWidth}" widthRelTo="ABSOLUTE" height="${totalHeight}" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="PARA" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/><hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>${rows}</hp:tbl>`;
   }
 
   function buildHwpxSection0(){
     const titleText = document.getElementById("schoolName").textContent.trim();
-    const titlePara = `<hp:p id="0" paraPrIDRef="3" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="16"><hp:t>${xmlEscape(titleText)}</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1900" textheight="1900" baseline="1615" spacing="1200" horzpos="0" horzsize="72512" flags="393216"/></hp:linesegarray></hp:p>`;
-    const table = buildHwpxScheduleTable();
-    const tablePara = `<hp:p id="0" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="14">${table}</hp:run><hp:run charPrIDRef="14"><hp:t/></hp:run><hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="900" textheight="900" baseline="765" spacing="360" horzpos="0" horzsize="78520" flags="393216"/></hp:linesegarray></hp:p>`;
-    const firstPara = `<hp:p id="0" paraPrIDRef="1" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="14">${HWPX_SECPR_BLOCK}${HWPX_CTRL_BLOCK}</hp:run></hp:p>`;
+    const titleBlockHeight = 3200; // reserve space for the title paragraph above the table
+    const titlePara = `<hp:p id="0" paraPrIDRef="3" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="16"><hp:t>${xmlEscape(titleText)}</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1900" textheight="1900" baseline="1615" spacing="1200" horzpos="0" horzsize="78988" flags="393216"/></hp:linesegarray></hp:p>`;
+    const table = buildHwpxScheduleTable(titleBlockHeight);
+    const tablePara = `<hp:p id="0" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="14">${table}</hp:run><hp:run charPrIDRef="14"><hp:t/></hp:run><hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="900" textheight="900" baseline="765" spacing="360" horzpos="0" horzsize="78988" flags="393216"/></hp:linesegarray></hp:p>`;
+    const firstPara = `<hp:p id="0" paraPrIDRef="1" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="14">${HWPX_SECPR_LANDSCAPE}${HWPX_CTRL_BLOCK}</hp:run></hp:p>`;
     return `${HWPX_SEC_OPEN}${firstPara}${titlePara}${tablePara}</hs:sec>`;
   }
 

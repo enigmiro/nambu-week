@@ -229,6 +229,10 @@
   }
   .day-cell:hover{background:#f8f6f0;}
   .day-cell:hover .add-hint{opacity:1; color:var(--navy);}
+  body.read-only .day-cell{cursor:default;}
+  body.read-only .day-cell:hover{background:none;}
+  body.read-only .day-cell .add-hint{display:none;}
+  body.read-only .row-label{cursor:default;}
   .day-cell.empty .entry-empty{
     font-size:11px; color:#c9c4b8;
   }
@@ -376,11 +380,13 @@
       <button class="btn ghost" id="gotoToday">오늘</button>
     </div>
     <div class="action-group">
-      <button class="btn small" id="addRowBtn">+ 행 추가(수정)</button>
       <button class="btn small primary" id="accessBtn">일정표 접속</button>
       <button class="btn small ghost" id="releaseBtn" style="display:none;" title="연결을 끊고 예시 데이터로 돌아갑니다">일정표 해제</button>
+      <button class="btn small" id="editModeBtn" style="display:none;">편집하기</button>
+      <button class="btn small ghost" id="lockModeBtn" style="display:none;" title="편집을 잠그고 읽기 전용으로 돌아갑니다">편집 잠그기</button>
+      <button class="btn small" id="addRowBtn" style="display:none;">+ 행 추가(수정)</button>
       <button class="btn small" id="backupBtn">데이터 백업</button>
-      <button class="btn small" id="importBtn">불러오기</button>
+      <button class="btn small" id="importBtn" style="display:none;">불러오기</button>
       <input type="file" id="importFile" accept="application/json" style="display:none;">
       <button class="btn small" id="printBtn">인쇄</button>
       <button class="btn small primary" id="exportBtn">내보내기(PDF)</button>
@@ -448,6 +454,22 @@
   </div>
 </div>
 
+<!-- 편집하기 (edit-password gate; unlocks editing on top of an already read-only "일정표 접속" session) -->
+<div class="backdrop" id="editBackdrop">
+  <div class="modal" style="max-width:340px;">
+    <h3>편집하기</h3>
+    <div class="modal-sub">편집 비밀번호를 입력하면 이 세션에서 일정을 수정할 수 있습니다.</div>
+    <div class="entry-edit">
+      <label class="fld-label">편집 비밀번호</label>
+      <input type="password" id="editPass" placeholder="비밀번호 입력">
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost small" id="editPassSkipBtn">취소</button>
+      <button class="btn primary small" id="editPassGoBtn">편집 잠금 해제</button>
+    </div>
+  </div>
+</div>
+
 <!-- Cell edit modal -->
 <div class="backdrop" id="backdrop">
   <div class="modal">
@@ -480,7 +502,19 @@
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
+    enc: {"salt":"w0VEyvuQ+Znizqtsv6vWkA==","iv":"fKlo0HmOboT5bbaz","data":"A4uWrr1NWy5abple91MMFXw9kLdL20/TwQvkEMOZdIzHr/7OQgILWZgQrcxc280kZBvjG0/lgwJGHgf1y6MxI1Q1pYUef6bZWjUbdwFh4RUrclAVv9H8hfa2/BMvP3EkrnlgcorpqAMfz/xTzA=="} // ← encrypt.html 결과로 교체
+  };
+
+  // =====================================================================================
+  // 편집 비밀번호 설정 (관리자 전용, 선택 사항)
+  // "일정표 접속"은 읽기 전용입니다. 편집하려면 별도의 편집 비밀번호가 필요합니다.
+  // encrypt.html 도구에서 "토큰" 칸에 아무 문자열이나(예: EDIT-OK) 넣고, 편집 비밀번호로
+  // 암호화한 결과를 아래 enc: {...} 자리에 붙여넣으세요. 실제 내용은 검사하지 않고
+  // "이 비밀번호로 정상 복호화되는지"만 확인하므로 아무 문자열이나 괜찮습니다.
+  // 비워두면 "편집하기" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
+  // =====================================================================================
+  const EDIT_AUTO_CONFIG = {
+    enc: {"salt":"P0BTRbX+wtMsbRXalF10+w==","iv":"wNPpC0tUny4Z8TfZ","data":"gQcnGDkt6vV27Cmig7IriSCWQ0DaVtXwqbR7rA0+QZUUt4a9puktenVkrg+pIg/HBYLWM2uC6jcjzWahYeBrvVhJT0KzTx+2g5pQWamqnZWpmTu1e3A2FxzTCYd+XraCmFVvJsO+Ig/PuvW0AA=="} // ← encrypt.html 결과로 교체
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -621,7 +655,7 @@
 
       const labelTd = document.createElement("td");
       labelTd.className = "row-label" + (cat.locked ? " locked" : "");
-      labelTd.contentEditable = cat.locked ? "false" : "true";
+      labelTd.contentEditable = (cat.locked || !editUnlocked) ? "false" : "true";
       labelTd.spellcheck = false;
       if(cat.locked && cat.label.endsWith("국장") && cat.label.length>2){
         // wrap "…국장" labels onto two lines (e.g. "교육지원" / "국장") so they read cleanly in a narrow column
@@ -635,20 +669,22 @@
         labelTd.addEventListener("blur", ()=>{
           cat.label = labelTd.textContent.trim() || cat.label;
         });
-        const delBtn = document.createElement("button");
-        delBtn.className = "row-del";
-        delBtn.type = "button";
-        delBtn.title = "행 삭제";
-        delBtn.textContent = "✕";
-        delBtn.addEventListener("click", (e)=>{
-          e.stopPropagation();
-          if(confirm(`'${cat.label}' 행을 삭제할까요? (해당 행의 모든 일정도 삭제됩니다)`)){
-            categories = categories.filter(c=>c.id!==cat.id);
-            Object.keys(entries).forEach(wk=>{ delete entries[wk][cat.id]; });
-            render();
-          }
-        });
-        labelTd.appendChild(delBtn);
+        if(editUnlocked){
+          const delBtn = document.createElement("button");
+          delBtn.className = "row-del";
+          delBtn.type = "button";
+          delBtn.title = "행 삭제";
+          delBtn.textContent = "✕";
+          delBtn.addEventListener("click", (e)=>{
+            e.stopPropagation();
+            if(confirm(`'${cat.label}' 행을 삭제할까요? (해당 행의 모든 일정도 삭제됩니다)`)){
+              categories = categories.filter(c=>c.id!==cat.id);
+              Object.keys(entries).forEach(wk=>{ delete entries[wk][cat.id]; });
+              render();
+            }
+          });
+          labelTd.appendChild(delBtn);
+        }
       }
       tr.appendChild(labelTd);
 
@@ -686,7 +722,7 @@
         hint.textContent = "+ 편집";
         wrap.appendChild(hint);
 
-        wrap.addEventListener("click", ()=> openEditor(key, cat.id, day, cat.label, dates[day]));
+        wrap.addEventListener("click", ()=>{ if(editUnlocked) openEditor(key, cat.id, day, cat.label, dates[day]); });
         td.appendChild(wrap);
         tr.appendChild(td);
       }
@@ -1028,6 +1064,7 @@
 
   // ---------- GitHub: push the week's JSON straight into a repo via the Contents API ----------
   let ghConfig = null; // {owner, repo, branch, path, token} — kept in memory only, never persisted
+  let editUnlocked = false; // "일정표 접속" is read-only; editing requires the separate edit password
 
   // Decrypts a token produced by encrypt.html. Wrong passphrase makes AES-GCM's
   // authentication check fail, so decryptToken() rejects cleanly rather than returning garbage.
@@ -1141,7 +1178,68 @@
   function setAccessButtonsState(connected){
     document.getElementById("accessBtn").style.display = connected ? "none" : "";
     document.getElementById("releaseBtn").style.display = connected ? "" : "none";
+    document.getElementById("editModeBtn").style.display = (connected && !editUnlocked) ? "" : "none";
   }
+
+  function setEditButtonsState(unlocked){
+    editUnlocked = unlocked;
+    document.getElementById("editModeBtn").style.display = (ghConfig && !unlocked) ? "" : "none";
+    document.getElementById("lockModeBtn").style.display = unlocked ? "" : "none";
+    document.getElementById("addRowBtn").style.display = unlocked ? "" : "none";
+    document.getElementById("importBtn").style.display = unlocked ? "" : "none";
+    document.getElementById("schoolName").contentEditable = unlocked ? "true" : "false";
+    document.body.classList.toggle("read-only", !unlocked);
+    render(); // row-labels/day-cells need to re-render with the new edit affordances shown or hidden
+  }
+
+  // Decrypting EDIT_AUTO_CONFIG.enc with the right password proves the password is correct
+  // (wrong passwords fail AES-GCM's authentication check) — the decrypted content itself
+  // isn't checked against anything, it's just used as a yes/no gate.
+  async function attemptEditUnlock(password){
+    if(!EDIT_AUTO_CONFIG.enc || !EDIT_AUTO_CONFIG.enc.data){
+      alert("관리자가 아직 편집 비밀번호를 설정하지 않았습니다.");
+      return false;
+    }
+    try{
+      await decryptToken(EDIT_AUTO_CONFIG.enc, password);
+      setEditButtonsState(true);
+      return true;
+    }catch(err){
+      return false;
+    }
+  }
+
+  const editBackdrop = document.getElementById("editBackdrop");
+  document.getElementById("editModeBtn").addEventListener("click", ()=>{
+    editBackdrop.classList.add("open");
+    setTimeout(()=> document.getElementById("editPass").focus(), 50);
+  });
+  document.getElementById("lockModeBtn").addEventListener("click", ()=>{
+    setEditButtonsState(false);
+  });
+  async function submitEditUnlock(){
+    const passInput = document.getElementById("editPass");
+    const pass = passInput.value;
+    if(!pass) return;
+    const ok = await attemptEditUnlock(pass);
+    if(ok){
+      editBackdrop.classList.remove("open");
+      passInput.value = "";
+    }else{
+      alert("비밀번호가 올바르지 않습니다. 다시 시도해주세요.");
+      passInput.value = "";
+      passInput.focus();
+    }
+  }
+  document.getElementById("editPassGoBtn").addEventListener("click", submitEditUnlock);
+  document.getElementById("editPass").addEventListener("keydown", (e)=>{ if(e.key==="Enter") submitEditUnlock(); });
+  document.getElementById("editPassSkipBtn").addEventListener("click", ()=> editBackdrop.classList.remove("open"));
+  let editBackdropMouseDownOnSelf = false;
+  editBackdrop.addEventListener("mousedown", (e)=>{ editBackdropMouseDownOnSelf = (e.target===editBackdrop); });
+  editBackdrop.addEventListener("click", (e)=>{
+    if(e.target===editBackdrop && editBackdropMouseDownOnSelf) editBackdrop.classList.remove("open");
+    editBackdropMouseDownOnSelf = false;
+  });
 
   document.getElementById("releaseBtn").addEventListener("click", ()=>{
     if(!confirm("일정표 연결을 해제할까요? 화면의 일정 내용도 함께 사라지고, 이 브라우저에 저장된 접속 정보도 지워집니다.")) return;
@@ -1151,6 +1249,7 @@
     loadedFromGithubWeeks.clear();
     ensureWeek(iso(weekStart));
     setAccessButtonsState(false);
+    setEditButtonsState(false);
     setBannerState("demo");
     render();
   });
@@ -1219,11 +1318,13 @@
   render();
   setBannerState("demo"); // wires up the banner's "일정표 접속" button and shows the demo-data notice
   setAccessButtonsState(false);
+  setEditButtonsState(false);
 
   // ---------- Connect + load a week's data, then update all the status UI ----------
   async function connectWithConfig(cfg){
     ghConfig = cfg;
     setAccessButtonsState(true);
+    setEditButtonsState(false); // always starts read-only, even if this browser remembers the access password
     setBannerState("loading");
     const key = iso(weekStart);
     await loadWeekFromGithub(key);

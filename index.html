@@ -361,7 +361,7 @@
   </div>
 
   <div class="data-source-banner" id="dataSourceBanner">
-    예시 데이터를 보고 있습니다 — 실제 저장된 데이터를 보려면 <button class="btn small primary" id="bannerConnectBtn">일정표 접속</button>을 눌러주세요.
+    일정표에 접속되지 않았습니다 <button class="btn small primary" id="bannerConnectBtn">일정표 접속</button>
   </div>
 
   <div class="topbar">
@@ -378,7 +378,7 @@
     <div class="action-group">
       <button class="btn small" id="addRowBtn">+ 행 추가(수정)</button>
       <button class="btn small primary" id="accessBtn">일정표 접속</button>
-      <button class="btn small ghost" id="releaseBtn" disabled title="연결을 끊고 예시 데이터로 돌아갑니다">일정표 해제</button>
+      <button class="btn small ghost" id="releaseBtn" style="display:none;" title="연결을 끊고 예시 데이터로 돌아갑니다">일정표 해제</button>
       <span class="dir-status" id="ghStatus"></span>
       <button class="btn small" id="backupBtn">데이터 백업</button>
       <button class="btn small" id="importBtn">불러오기</button>
@@ -481,7 +481,7 @@
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"oHots8bmKKp4ZlIlkW8kvg==","iv":"SzcNphy/HESOZ2r1","data":"pgG/ojq/lBIXb+pmnamNaPQ300KYJfgiBheYlENpE+gWAo9h9ECRAQrFdiwbOfO1LnJw0gaI6faRk2SElwGKBrwqcp3NWrwoqsVjv1pjwfFxdAjfyuR3YAM44c64bGcme2pYH4ZZFSgo0fEqOQ=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -707,14 +707,12 @@
     render(); // show immediately with whatever we already have
     const key = iso(weekStart);
     if(ghConfig && !loadedFromGithubWeeks.has(key)){
-      setBannerState("loading", `${ghConfig.owner}/${ghConfig.repo}에서 이 주 데이터를 불러오는 중…`);
+      setBannerState("loading");
       const found = await loadWeekFromGithub(key);
       if(found) render(); // refresh with the data pulled from GitHub
-      setBannerState("connected", found
-        ? `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>의 저장된 데이터를 보고 있습니다.`
-        : `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
+      setBannerState("connected");
     } else if(ghConfig){
-      setBannerState("connected", `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>에 연결됨.`);
+      setBannerState("connected");
     }
   }
   document.getElementById("prevWeek").addEventListener("click", ()=> goToWeek(addDays(weekStart,-7)));
@@ -1055,20 +1053,20 @@
     el.classList.toggle("connected", !!ok);
   }
 
-  function setBannerState(mode, text){
+  function setBannerState(mode){
     // mode: 'demo' | 'loading' | 'connected'
     const el = document.getElementById("dataSourceBanner");
     if(mode==="connected"){
       el.classList.add("connected");
-      el.innerHTML = text || "일정표에 접속되어 최신 데이터를 보고 있습니다.";
+      el.innerHTML = `일정표에 접속되었습니다 <button class="btn small primary" id="bannerConnectBtn">일정표 해제</button>`;
+      document.getElementById("bannerConnectBtn").addEventListener("click", ()=> document.getElementById("releaseBtn").click());
     } else if(mode==="loading"){
       el.classList.remove("connected");
-      el.textContent = text || "저장된 데이터를 불러오는 중…";
+      el.textContent = "접속하는 중…";
     } else {
       el.classList.remove("connected");
-      el.innerHTML = `예시 데이터를 보고 있습니다 — 실제 저장된 데이터를 보려면 <button class="btn small primary" id="bannerConnectBtn">일정표 접속</button>을 눌러주세요.`;
-      const btn = document.getElementById("bannerConnectBtn");
-      if(btn) btn.addEventListener("click", ()=> document.getElementById("accessBtn").click());
+      el.innerHTML = `일정표에 접속되지 않았습니다 <button class="btn small primary" id="bannerConnectBtn">일정표 접속</button>`;
+      document.getElementById("bannerConnectBtn").addEventListener("click", ()=> document.getElementById("accessBtn").click());
     }
   }
 
@@ -1144,8 +1142,8 @@
   }
 
   function setAccessButtonsState(connected){
-    document.getElementById("accessBtn").disabled = connected;
-    document.getElementById("releaseBtn").disabled = !connected;
+    document.getElementById("accessBtn").style.display = connected ? "none" : "";
+    document.getElementById("releaseBtn").style.display = connected ? "" : "none";
   }
 
   document.getElementById("releaseBtn").addEventListener("click", ()=>{
@@ -1238,14 +1236,12 @@
     ghConfig = cfg;
     setAccessButtonsState(true);
     setGhStatus(`연결됨: ${cfg.owner}/${cfg.repo} — 불러오는 중…`, true);
-    setBannerState("loading", `${cfg.owner}/${cfg.repo}에서 이번 주 데이터를 불러오는 중…`);
+    setBannerState("loading");
     const key = iso(weekStart);
     const found = await loadWeekFromGithub(key);
     render();
     setGhStatus(found ? `연결됨: ${cfg.owner}/${cfg.repo} (저장된 데이터 불러옴)` : `연결됨: ${cfg.owner}/${cfg.repo}`, true);
-    setBannerState("connected", found
-      ? `<strong>${cfg.owner}/${cfg.repo}</strong>의 저장된 데이터를 보고 있습니다.`
-      : `<strong>${cfg.owner}/${cfg.repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
+    setBannerState("connected");
   }
 
   async function runAutoConnect(passphrase, remember){

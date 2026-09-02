@@ -480,7 +480,7 @@
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"w0VEyvuQ+Znizqtsv6vWkA==","iv":"fKlo0HmOboT5bbaz","data":"A4uWrr1NWy5abple91MMFXw9kLdL20/TwQvkEMOZdIzHr/7OQgILWZgQrcxc280kZBvjG0/lgwJGHgf1y6MxI1Q1pYUef6bZWjUbdwFh4RUrclAVv9H8hfa2/BMvP3EkrnlgcorpqAMfz/xTzA=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -1144,11 +1144,15 @@
   }
 
   document.getElementById("releaseBtn").addEventListener("click", ()=>{
-    if(!confirm("일정표 연결을 해제할까요? 이 브라우저에 저장된 접속 정보도 함께 지워집니다.")) return;
+    if(!confirm("일정표 연결을 해제할까요? 화면의 일정 내용도 함께 사라지고, 이 브라우저에 저장된 접속 정보도 지워집니다.")) return;
     forgetGhConfig();
     ghConfig = null;
+    entries = {};                 // clear loaded data from view — nothing stays visible once disconnected
+    loadedFromGithubWeeks.clear();
+    ensureWeek(iso(weekStart));
     setAccessButtonsState(false);
     setBannerState("demo");
+    render();
   });
 
   // Saves for the same week must run one-at-a-time; overlapping saves cause a "sha does not match"
@@ -1208,18 +1212,9 @@
     }
   }
 
-  // ---------- seed with the uploaded sheet's sample data ----------
-  (function seed(){
-    const key = iso(weekStart);
-    ensureWeek(key);
-    entries[key]["c1"][0] = [{id:uid(), time:"", title:"연가", loc:""}]; // 원감 · 월(31)
-    entries[key]["c1"][2] = [
-      {id:uid(), time:"09:10", title:"월례조회", loc:"대회의실"},
-      {id:uid(), time:"10:30", title:"학맞통지역위원회위촉식", loc:"상상플랫폼"}
-    ]; // 원감 · 수(2)
-    entries[key]["c2"][1] = [{id:uid(), time:"", title:"연가", loc:""}]; // 교무 · 화(9/1)
-    entries[key]["c3"][0] = [{id:uid(), time:"09:00", title:"월간공감회의", loc:"시교육청"}]; // 방과후 · 월(31)
-  })();
+  // Sample data is intentionally not pre-loaded — until "일정표 접속" succeeds, every cell stays
+  // empty rather than showing placeholder content that could be mistaken for real data.
+  ensureWeek(iso(weekStart));
 
   render();
   setBannerState("demo"); // wires up the banner's "일정표 접속" button and shows the demo-data notice

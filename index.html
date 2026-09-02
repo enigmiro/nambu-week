@@ -299,6 +299,7 @@
   label.fld-label{font-size:10.5px; color:var(--ink-soft); display:block; margin-bottom:2px;}
 
   @media print{
+    @page{ size: landscape; }
     body{background:#fff; padding:0;}
     .sheet{border:none; max-width:none; padding:6px;}
     .toolbar, .add-row-wrap, .row-del, .add-hint, footer.hint, .school-name{cursor:default;}
@@ -385,7 +386,6 @@
       <button class="btn small" id="editModeBtn" style="display:none;">편집하기</button>
       <button class="btn small ghost" id="lockModeBtn" style="display:none;" title="편집을 잠그고 읽기 전용으로 돌아갑니다">편집 잠그기</button>
       <button class="btn small" id="addRowBtn" style="display:none;">+ 행 추가(수정)</button>
-      <button class="btn small" id="backupBtn">데이터 백업</button>
       <button class="btn small" id="importBtn" style="display:none;">불러오기</button>
       <input type="file" id="importFile" accept="application/json" style="display:none;">
       <button class="btn small" id="printBtn">인쇄</button>
@@ -429,7 +429,7 @@
   <footer class="hint">
     <strong>내보내기</strong>를 누르면 현재 보고 있는 주간 일정표가 PDF 파일로 저장됩니다.
     <strong>일정표 접속</strong>으로 한 번 접속해두면, 일정을 편집하고 <strong>저장 및 닫기</strong>를 누를 때마다 해당 주(week)의 JSON 파일이 자동으로 저장됩니다.
-    새로고침 전에 <strong>데이터 백업</strong>으로 전체 데이터를 JSON으로 저장해 두면 <strong>불러오기</strong>로 그대로 이어서 사용할 수 있습니다.
+    이전에 내보낸 JSON 백업 파일이 있다면 <strong>불러오기</strong>로 그대로 이어서 사용할 수 있습니다.
   </footer>
 </div>
 <div id="pdfSpinner" class="pdf-overlay"><div class="pdf-box">PDF 생성 중…</div></div>
@@ -502,7 +502,7 @@
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"w0VEyvuQ+Znizqtsv6vWkA==","iv":"fKlo0HmOboT5bbaz","data":"A4uWrr1NWy5abple91MMFXw9kLdL20/TwQvkEMOZdIzHr/7OQgILWZgQrcxc280kZBvjG0/lgwJGHgf1y6MxI1Q1pYUef6bZWjUbdwFh4RUrclAVv9H8hfa2/BMvP3EkrnlgcorpqAMfz/xTzA=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   // =====================================================================================
@@ -514,7 +514,7 @@
   // 비워두면 "편집하기" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
   // =====================================================================================
   const EDIT_AUTO_CONFIG = {
-    enc: {"salt":"P0BTRbX+wtMsbRXalF10+w==","iv":"wNPpC0tUny4Z8TfZ","data":"gQcnGDkt6vV27Cmig7IriSCWQ0DaVtXwqbR7rA0+QZUUt4a9puktenVkrg+pIg/HBYLWM2uC6jcjzWahYeBrvVhJT0KzTx+2g5pQWamqnZWpmTu1e3A2FxzTCYd+XraCmFVvJsO+Ig/PuvW0AA=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -812,20 +812,6 @@
       document.body.classList.remove("pdf-capture");
       pdfSpinner.classList.remove("show");
     }
-  });
-
-  // ---------- JSON backup / restore (데이터 백업 / 불러오기) ----------
-  document.getElementById("backupBtn").addEventListener("click", ()=>{
-    const payload = {categories, entries, weekStart: iso(weekStart)};
-    const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `주간일정표_백업_${iso(weekStart)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
   });
 
   document.getElementById("importBtn").addEventListener("click", ()=> document.getElementById("importFile").click());

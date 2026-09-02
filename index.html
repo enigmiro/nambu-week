@@ -111,6 +111,7 @@
     touch-action:manipulation;
   }
   .btn:hover{background:var(--row-hover); border-color:var(--ink-soft);}
+  .btn:disabled{opacity:.45; cursor:default; pointer-events:none;}
   .btn.primary{background:var(--navy); border-color:var(--navy); color:#fff; box-shadow:0 1px 2px rgba(20,31,44,.25);}
   .btn.primary:hover{background:var(--navy-deep); border-color:var(--navy-deep);}
   .btn.ghost{border-color:transparent; background:transparent;}
@@ -360,7 +361,7 @@
   </div>
 
   <div class="data-source-banner" id="dataSourceBanner">
-    예시 데이터를 보고 있습니다 — 실제 저장된 데이터를 보려면 <button class="btn small primary" id="bannerConnectBtn">GitHub 연결</button>을 눌러주세요.
+    예시 데이터를 보고 있습니다 — 실제 저장된 데이터를 보려면 <button class="btn small primary" id="bannerConnectBtn">일정표 접속</button>을 눌러주세요.
   </div>
 
   <div class="topbar">
@@ -376,8 +377,8 @@
     </div>
     <div class="action-group">
       <button class="btn small" id="addRowBtn">+ 행 추가(수정)</button>
-      <button class="btn small" id="connectGithubBtn">GitHub 연결</button>
-      <button class="btn small ghost" id="forgetGithubBtn" style="display:none;" title="이 브라우저에 저장된 연결 정보를 지웁니다">연결 해제</button>
+      <button class="btn small primary" id="accessBtn">일정표 접속</button>
+      <button class="btn small ghost" id="releaseBtn" disabled title="연결을 끊고 예시 데이터로 돌아갑니다">일정표 해제</button>
       <span class="dir-status" id="ghStatus"></span>
       <button class="btn small" id="backupBtn">데이터 백업</button>
       <button class="btn small" id="importBtn">불러오기</button>
@@ -422,59 +423,28 @@
 
   <footer class="hint">
     <strong>내보내기</strong>를 누르면 현재 보고 있는 주간 일정표가 PDF 파일로 저장됩니다.
-    <strong>GitHub 연결</strong>로 저장소를 한 번 연결해두면, 일정을 편집하고 <strong>저장 및 닫기</strong>를 누를 때마다 해당 주(week)의 JSON 파일이 그 저장소의 <code>data</code> 폴더에 자동으로 커밋됩니다.
+    <strong>일정표 접속</strong>으로 한 번 접속해두면, 일정을 편집하고 <strong>저장 및 닫기</strong>를 누를 때마다 해당 주(week)의 JSON 파일이 자동으로 저장됩니다.
     새로고침 전에 <strong>데이터 백업</strong>으로 전체 데이터를 JSON으로 저장해 두면 <strong>불러오기</strong>로 그대로 이어서 사용할 수 있습니다.
   </footer>
 </div>
 <div id="pdfSpinner" class="pdf-overlay"><div class="pdf-box">PDF 생성 중…</div></div>
 
-<!-- GitHub connect modal -->
-<div class="backdrop" id="ghBackdrop">
-  <div class="modal">
-    <h3>GitHub 저장 연결</h3>
-    <div class="modal-sub">repo 쓰기 권한만 가진 토큰을 권장합니다. 아래 "기억하기"를 켜지 않으면 토큰은 이 브라우저 세션에만 보관되고, 새로고침하면 다시 입력해야 합니다.</div>
-    <div class="entry-edit">
-      <label class="fld-label">저장소 (owner/repo)</label>
-      <input type="text" id="ghRepo" placeholder="예: myid/schedule-data" value="enigmiro/nambu-week">
-    </div>
-    <div class="entry-edit">
-      <label class="fld-label">브랜치</label>
-      <input type="text" id="ghBranch" placeholder="main" value="main">
-    </div>
-    <div class="entry-edit">
-      <label class="fld-label">저장 경로 (폴더)</label>
-      <input type="text" id="ghPath" placeholder="data" value="data">
-    </div>
-    <div class="entry-edit">
-      <label class="fld-label">Personal Access Token (repo 쓰기 권한)</label>
-      <input type="password" id="ghToken" placeholder="ghp_...">
-    </div>
-    <label class="share-chip" style="width:100%; justify-content:flex-start; margin-bottom:4px;">
-      <input type="checkbox" id="ghRemember">
-      이 브라우저에 저장 (다음부터 새로고침해도 자동 연결) — 본인만 쓰는 PC에서만 체크하세요
-    </label>
-    <div class="modal-footer">
-      <span></span>
-      <div style="display:flex; gap:8px;">
-        <button class="btn ghost small" id="ghCancelBtn">취소</button>
-        <button class="btn primary small" id="ghSaveBtn">연결</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Auto-connect passphrase modal (only appears if GH_AUTO_CONFIG has an encrypted token set up) -->
+<!-- 일정표 접속 (passphrase-based connect; only works once an admin has set up GH_AUTO_CONFIG with an encrypted token) -->
 <div class="backdrop" id="passBackdrop">
   <div class="modal" style="max-width:340px;">
-    <h3>GitHub 자동 연결</h3>
-    <div class="modal-sub">암호를 입력하면 저장된 GitHub 저장소에 자동으로 연결됩니다. 암호는 저장되지 않고 이 연결에만 사용됩니다.</div>
+    <h3>일정표 접속</h3>
+    <div class="modal-sub">관리자가 알려준 암호를 입력하면 저장된 일정표에 연결됩니다.</div>
     <div class="entry-edit">
       <label class="fld-label">암호(passphrase)</label>
       <input type="password" id="autoConnectPass" placeholder="암호 입력">
     </div>
+    <label class="share-chip" style="width:100%; justify-content:flex-start; margin-bottom:4px;">
+      <input type="checkbox" id="autoConnectRemember">
+      이 브라우저에 저장 (다음부터 새로고침해도 자동 접속) — 본인만 쓰는 PC에서만 체크하세요
+    </label>
     <div class="modal-footer">
-      <button class="btn ghost small" id="autoConnectSkipBtn">건너뛰기</button>
-      <button class="btn primary small" id="autoConnectGoBtn">연결</button>
+      <button class="btn ghost small" id="autoConnectSkipBtn">취소</button>
+      <button class="btn primary small" id="autoConnectGoBtn">접속</button>
     </div>
   </div>
 </div>
@@ -500,10 +470,10 @@
   "use strict";
 
   // =====================================================================================
-  // GITHUB 자동 연결 설정 (선택 사항)
+  // 일정표 접속 설정 (관리자 전용)
   // encrypt.html 도구로 만든 암호화 결과를 아래 enc: {...} 자리에 붙여넣으면,
-  // 페이지를 열 때 암호(passphrase) 한 번만 입력해서 자동으로 GitHub에 연결됩니다.
-  // 비워두면(enc.data가 빈 문자열이면) 기존처럼 "GitHub 연결" 버튼으로 수동 연결합니다.
+  // 직원들이 "일정표 접속" 버튼에서 암호(passphrase)만 입력해 GitHub에 연결할 수 있습니다.
+  // 비워두면(enc.data가 빈 문자열이면) "일정표 접속" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
   // 절대 토큰 원문을 여기 직접 적지 마세요 — 반드시 암호화된 값만 넣으세요.
   // =====================================================================================
   const GH_AUTO_CONFIG = {
@@ -511,7 +481,7 @@
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"cUh1OxkZg6Vz5ZvhPbyUhg==","iv":"AdnG+BYEW3na7TvM","data":"0hU2A6DH5HC6pIY4UQKjIt5dI2FXdiWVBmisYngg39K5F4tqfX41Srll1D04OKaJzk+hoJ1YiFYKg3FIPTmUg9TO9rcP+D2p5b+wFFaAEFFqN1v3FCHH3jMB2T9KRjN7XA97TcYZe6hwLDIkaQ=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -1090,15 +1060,15 @@
     const el = document.getElementById("dataSourceBanner");
     if(mode==="connected"){
       el.classList.add("connected");
-      el.innerHTML = text || "GitHub에 연결되어 최신 데이터를 보고 있습니다.";
+      el.innerHTML = text || "일정표에 접속되어 최신 데이터를 보고 있습니다.";
     } else if(mode==="loading"){
       el.classList.remove("connected");
       el.textContent = text || "저장된 데이터를 불러오는 중…";
     } else {
       el.classList.remove("connected");
-      el.innerHTML = `예시 데이터를 보고 있습니다 — 실제 저장된 데이터를 보려면 <button class="btn small primary" id="bannerConnectBtn">GitHub 연결</button>을 눌러주세요.`;
+      el.innerHTML = `예시 데이터를 보고 있습니다 — 실제 저장된 데이터를 보려면 <button class="btn small primary" id="bannerConnectBtn">일정표 접속</button>을 눌러주세요.`;
       const btn = document.getElementById("bannerConnectBtn");
-      if(btn) btn.addEventListener("click", ()=> document.getElementById("connectGithubBtn").click());
+      if(btn) btn.addEventListener("click", ()=> document.getElementById("accessBtn").click());
     }
   }
 
@@ -1156,23 +1126,6 @@
     }
   }
 
-  const ghBackdrop = document.getElementById("ghBackdrop");
-  document.getElementById("connectGithubBtn").addEventListener("click", ()=>{
-    if(ghConfig){
-      document.getElementById("ghRepo").value = `${ghConfig.owner}/${ghConfig.repo}`;
-      document.getElementById("ghBranch").value = ghConfig.branch;
-      document.getElementById("ghPath").value = ghConfig.path;
-    }
-    ghBackdrop.classList.add("open");
-  });
-  document.getElementById("ghCancelBtn").addEventListener("click", ()=> ghBackdrop.classList.remove("open"));
-  let ghBackdropMouseDownOnSelf = false;
-  ghBackdrop.addEventListener("mousedown", (e)=>{ ghBackdropMouseDownOnSelf = (e.target===ghBackdrop); });
-  ghBackdrop.addEventListener("click", (e)=>{
-    if(e.target===ghBackdrop && ghBackdropMouseDownOnSelf) ghBackdrop.classList.remove("open");
-    ghBackdropMouseDownOnSelf = false;
-  });
-
   // ---------- "이 브라우저에 저장" (remember on this device) ----------
   // Only meaningful when this file is opened directly in your own browser (not previewed inside
   // Claude's chat window, where browser storage is sandboxed and won't persist).
@@ -1190,36 +1143,16 @@
     }catch(e){ return null; }
   }
 
-  document.getElementById("ghSaveBtn").addEventListener("click", async ()=>{
-    const repoRaw = document.getElementById("ghRepo").value.trim();
-    const [owner, repo] = repoRaw.split("/").map(s=>s && s.trim());
-    const branch = document.getElementById("ghBranch").value.trim() || "main";
-    const path = document.getElementById("ghPath").value.trim().replace(/^\/+|\/+$/g,"") || "data";
-    const token = document.getElementById("ghToken").value.trim();
-    const remember = document.getElementById("ghRemember").checked;
-    if(!owner || !repo || !token){
-      alert("저장소는 'owner/repo' 형식으로, 토큰도 함께 입력해주세요.");
-      return;
-    }
-    ghConfig = {owner, repo, branch, path, token};
-    if(remember){ rememberGhConfig(ghConfig); document.getElementById("forgetGithubBtn").style.display = ""; }
-    ghBackdrop.classList.remove("open");
-    setGhStatus(`연결됨: ${owner}/${repo} — 불러오는 중…`, true);
-    setBannerState("loading", `${owner}/${repo}에서 이번 주 데이터를 불러오는 중…`);
-    const key = iso(weekStart);
-    const found = await loadWeekFromGithub(key);
-    render();
-    setGhStatus(found ? `연결됨: ${owner}/${repo} (저장된 데이터 불러옴)` : `연결됨: ${owner}/${repo}`, true);
-    setBannerState("connected", found
-      ? `<strong>${owner}/${repo}</strong>의 저장된 데이터를 보고 있습니다.`
-      : `<strong>${owner}/${repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
-  });
+  function setAccessButtonsState(connected){
+    document.getElementById("accessBtn").disabled = connected;
+    document.getElementById("releaseBtn").disabled = !connected;
+  }
 
-  document.getElementById("forgetGithubBtn").addEventListener("click", ()=>{
-    if(!confirm("이 브라우저에 저장된 GitHub 연결 정보를 지울까요? 다음부터는 다시 수동으로 연결해야 합니다.")) return;
+  document.getElementById("releaseBtn").addEventListener("click", ()=>{
+    if(!confirm("일정표 연결을 해제할까요? 이 브라우저에 저장된 접속 정보도 함께 지워집니다.")) return;
     forgetGhConfig();
     ghConfig = null;
-    document.getElementById("forgetGithubBtn").style.display = "none";
+    setAccessButtonsState(false);
     setGhStatus("", false);
     setBannerState("demo");
   });
@@ -1297,33 +1230,13 @@
   })();
 
   render();
-  setBannerState("demo"); // wires up the banner's "GitHub 연결" button and shows the demo-data notice
+  setBannerState("demo"); // wires up the banner's "일정표 접속" button and shows the demo-data notice
+  setAccessButtonsState(false);
 
-  // ---------- Auto-connect (optional): if GH_AUTO_CONFIG has an encrypted token set up ----------
-  async function runAutoConnect(passphrase){
-    try{
-      const token = await decryptToken(GH_AUTO_CONFIG.enc, passphrase);
-      ghConfig = { owner: GH_AUTO_CONFIG.owner, repo: GH_AUTO_CONFIG.repo, branch: GH_AUTO_CONFIG.branch, path: GH_AUTO_CONFIG.path, token };
-      setGhStatus(`연결됨: ${ghConfig.owner}/${ghConfig.repo} — 불러오는 중…`, true);
-      setBannerState("loading", `${ghConfig.owner}/${ghConfig.repo}에서 이번 주 데이터를 불러오는 중…`);
-      const key = iso(weekStart);
-      const found = await loadWeekFromGithub(key);
-      render();
-      setGhStatus(found ? `연결됨: ${ghConfig.owner}/${ghConfig.repo} (저장된 데이터 불러옴)` : `연결됨: ${ghConfig.owner}/${ghConfig.repo}`, true);
-      setBannerState("connected", found
-        ? `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>의 저장된 데이터를 보고 있습니다.`
-        : `<strong>${ghConfig.owner}/${ghConfig.repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
-      return true;
-    }catch(err){
-      console.error(err);
-      return false;
-    }
-  }
-
-  // ---------- Reconnect automatically using a remembered config, if this browser has one ----------
+  // ---------- Connect + load a week's data, then update all the status UI ----------
   async function connectWithConfig(cfg){
     ghConfig = cfg;
-    document.getElementById("forgetGithubBtn").style.display = "";
+    setAccessButtonsState(true);
     setGhStatus(`연결됨: ${cfg.owner}/${cfg.repo} — 불러오는 중…`, true);
     setBannerState("loading", `${cfg.owner}/${cfg.repo}에서 이번 주 데이터를 불러오는 중…`);
     const key = iso(weekStart);
@@ -1335,26 +1248,42 @@
       : `<strong>${cfg.owner}/${cfg.repo}</strong>에 연결됨 — 이 주(week)는 아직 저장된 파일이 없어 예시/빈 상태입니다.`);
   }
 
+  async function runAutoConnect(passphrase, remember){
+    if(!GH_AUTO_CONFIG.enc || !GH_AUTO_CONFIG.enc.data){
+      alert("관리자가 아직 일정표 접속을 설정하지 않았습니다.");
+      return false;
+    }
+    try{
+      const token = await decryptToken(GH_AUTO_CONFIG.enc, passphrase);
+      const cfg = { owner: GH_AUTO_CONFIG.owner, repo: GH_AUTO_CONFIG.repo, branch: GH_AUTO_CONFIG.branch, path: GH_AUTO_CONFIG.path, token };
+      if(remember) rememberGhConfig(cfg);
+      await connectWithConfig(cfg);
+      return true;
+    }catch(err){
+      console.error(err);
+      return false;
+    }
+  }
+
   const passBackdrop = document.getElementById("passBackdrop");
-  const remembered = loadRememberedGhConfig();
-  if(remembered && remembered.owner && remembered.repo && remembered.token){
-    // zero-friction path: this browser already has a saved connection — just use it, no prompt at all
-    connectWithConfig(remembered);
-  } else if(GH_AUTO_CONFIG.enc && GH_AUTO_CONFIG.enc.data){
+  function openAccessModal(){
     passBackdrop.classList.add("open");
     setTimeout(()=> document.getElementById("autoConnectPass").focus(), 50);
   }
+
+  document.getElementById("accessBtn").addEventListener("click", openAccessModal);
 
   async function submitAutoConnect(){
     const passInput = document.getElementById("autoConnectPass");
     const pass = passInput.value;
     if(!pass) return;
-    const ok = await runAutoConnect(pass);
+    const remember = document.getElementById("autoConnectRemember").checked;
+    const ok = await runAutoConnect(pass, remember);
     if(ok){
       passBackdrop.classList.remove("open");
       passInput.value = "";
     }else{
-      alert("암호가 올바르지 않거나 복호화에 실패했습니다. 다시 시도하거나 '건너뛰기'를 눌러 수동으로 연결해주세요.");
+      alert("암호가 올바르지 않거나 복호화에 실패했습니다. 다시 시도해주세요.");
       passInput.value = "";
       passInput.focus();
     }
@@ -1364,6 +1293,20 @@
   document.getElementById("autoConnectSkipBtn").addEventListener("click", ()=>{
     passBackdrop.classList.remove("open");
   });
+  let passBackdropMouseDownOnSelf = false;
+  passBackdrop.addEventListener("mousedown", (e)=>{ passBackdropMouseDownOnSelf = (e.target===passBackdrop); });
+  passBackdrop.addEventListener("click", (e)=>{
+    if(e.target===passBackdrop && passBackdropMouseDownOnSelf) passBackdrop.classList.remove("open");
+    passBackdropMouseDownOnSelf = false;
+  });
+
+  // ---------- On page load: reconnect automatically if this browser already has a saved connection ----------
+  const remembered = loadRememberedGhConfig();
+  if(remembered && remembered.owner && remembered.repo && remembered.token){
+    connectWithConfig(remembered); // zero-friction — no prompt at all
+  } else if(GH_AUTO_CONFIG.enc && GH_AUTO_CONFIG.enc.data){
+    openAccessModal(); // admin has set up an access password — ask for it
+  }
 })();
 </script>
 </body>

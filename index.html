@@ -51,13 +51,10 @@
     align-items:center;
     flex-wrap:wrap;
     gap:16px;
-    padding-bottom:16px;
-    margin-bottom:20px;
-    border-bottom:1px solid var(--line);
   }
   .title-block{
     text-align:center;
-    margin:2px 0 22px;
+    margin:2px 0 6px;
   }
   .school-name{
     display:inline-block;
@@ -78,7 +75,7 @@
   .data-source-banner{
     display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
     background:#fbf1d4; border:1px solid #e3cd8f; color:#5c4a12;
-    font-size:13px; padding:10px 14px; border-radius:7px; margin:0 0 18px;
+    font-size:13px; padding:10px 14px; border-radius:7px; margin:0 0 10px;
   }
   .data-source-banner.connected{
     background:#e7f2ea; border-color:#a8cdb3; color:#20522f;
@@ -118,7 +115,7 @@
   .btn.ghost:hover{background:var(--row-hover);}
   .btn.small{padding:4px 10px; font-size:12px;}
   .btn.danger{color:var(--sun-red);}
-  .week-range{font-size:13px; color:var(--ink-soft); min-width:150px; text-align:center;}
+  .week-range{font-size:17px; font-weight:700; color:var(--navy-deep); min-width:170px; text-align:center;}
   .action-group{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
   .dir-status{font-size:11.5px; color:var(--ink-soft);}
   .dir-status.connected{color:#3f8a5c; font-weight:600;}
@@ -345,7 +342,7 @@
     .action-group{width:100%; justify-content:flex-start;}
     .btn{padding:9px 12px; font-size:13px;}
     .btn.small{padding:8px 11px; font-size:12.5px;}
-    .week-range{min-width:0; flex:1; font-size:12px;}
+    .week-range{min-width:0; flex:1; font-size:14px;}
     thead th{font-size:12px; padding:8px 4px;}
     .day-cell{min-height:76px; padding:8px 6px 22px;}
     .entry{font-size:12.5px;}
@@ -368,8 +365,6 @@
   <div class="data-source-banner" id="dataSourceBanner">
     일정표에 접속되지 않았습니다 <button class="btn small primary" id="bannerConnectBtn">일정표 접속</button>
   </div>
-
-  <div class="topbar"></div>
 
   <div class="toolbar">
     <div class="nav-group">
@@ -424,11 +419,6 @@
     </div>
   </div>
 
-  <footer class="hint">
-    <strong>내보내기</strong>를 누르면 현재 보고 있는 주간 일정표가 PDF 파일로 저장됩니다.
-    <strong>일정표 접속</strong>으로 한 번 접속해두면, 일정을 편집하고 <strong>저장 및 닫기</strong>를 누를 때마다 해당 주(week)의 JSON 파일이 자동으로 저장됩니다.
-    이전에 내보낸 JSON 백업 파일이 있다면 <strong>불러오기</strong>로 그대로 이어서 사용할 수 있습니다.
-  </footer>
 </div>
 <div id="pdfSpinner" class="pdf-overlay"><div class="pdf-box">PDF 생성 중…</div></div>
 
@@ -504,7 +494,7 @@
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"kNmuR99wzTLABpP+VA/GTg==","iv":"Dt9rNPcKc7jt2rAt","data":"sYRAlmGtnZQKezCRUStmVtTHjC0aJsnrw0YtYvBtoWU5qFXKwMSxiCuL8J+v5StUAMexnwE0HYyDYh3/nZ8MsqOUGzgkXm3gg6bUYXRzOKInNkJ/5A4Z+nrrIor3L7JqL3sc5Ef3mG3lXrPs7Q=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   // =====================================================================================
@@ -517,7 +507,7 @@
   // 비워두면 "편집하기" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
   // =====================================================================================
   const EDIT_AUTO_CONFIG = {
-    enc: {"salt":"HMs4iFTI1p+BjuTtt5zvWw==","iv":"J7NlCHTHzuP7ZhLp","data":"r1q5DLvweo73JzBMt6GDGcqQERWMKIpaCgFi1Ij8zmAiicNBF3U/YHusyiGwhEeJ7ugGmw3UqdrLcsflw3Eaix1X20eW3JPThfHxZZCZKvyykyB1n/6llC0jq/I36YV+C+u5Og7HKeJil9dZqg=="} // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)

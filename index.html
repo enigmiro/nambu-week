@@ -510,7 +510,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"kNmuR99wzTLABpP+VA/GTg==","iv":"Dt9rNPcKc7jt2rAt","data":"sYRAlmGtnZQKezCRUStmVtTHjC0aJsnrw0YtYvBtoWU5qFXKwMSxiCuL8J+v5StUAMexnwE0HYyDYh3/nZ8MsqOUGzgkXm3gg6bUYXRzOKInNkJ/5A4Z+nrrIor3L7JqL3sc5Ef3mG3lXrPs7Q=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   // =====================================================================================
@@ -523,7 +523,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   // 비워두면 "편집하기" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
   // =====================================================================================
   const EDIT_AUTO_CONFIG = {
-    enc: {"salt":"HMs4iFTI1p+BjuTtt5zvWw==","iv":"J7NlCHTHzuP7ZhLp","data":"r1q5DLvweo73JzBMt6GDGcqQERWMKIpaCgFi1Ij8zmAiicNBF3U/YHusyiGwhEeJ7ugGmw3UqdrLcsflw3Eaix1X20eW3JPThfHxZZCZKvyykyB1n/6llC0jq/I36YV+C+u5Og7HKeJil9dZqg=="} // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -1287,32 +1287,34 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
       "Authorization": `token ${ghConfig.token}`,
       "Accept": "application/vnd.github+json"
     };
-    try{
-      const res = await fetch(`${api}?ref=${encodeURIComponent(ghConfig.branch)}`, {headers, cache:"no-store"});
-      loadedFromGithubWeeks.add(weekKey);
-      if(res.status===404) return false; // nothing saved for this week yet — keep what's already showing
-      if(!res.ok) throw new Error(`불러오기 실패 (${res.status})`);
-      const data = await res.json();
-      const payload = JSON.parse(base64ToUtf8(data.content));
-      // Guard against a corrupted/older save where categories was saved as an empty array —
-      // "[]" is truthy in JS, so a naive `if(payload.categories)` check would still wipe out
-      // the default rows. Only adopt the loaded categories if they actually contain rows.
-      let categoriesWereEmpty = false;
-      if(payload.categories && payload.categories.length > 0){
-        categories = payload.categories;
-      } else if(payload.categories){
-        categoriesWereEmpty = true; // present but empty — keep current defaults, and heal the file below
-      }
-      if(payload.entries && payload.entries[weekKey]) entries[weekKey] = payload.entries[weekKey];
-      if(categoriesWereEmpty){
-        console.warn(`data/${weekKey}.json had an empty categories list — keeping the default rows and re-saving to fix the file.`);
-        saveWeekToGithub(weekKey); // self-heal: re-commit with the correct (non-empty) categories
-      }
-      return true;
-    }catch(err){
-      console.error(err);
-      return false;
+    const res = await fetch(`${api}?ref=${encodeURIComponent(ghConfig.branch)}`, {headers, cache:"no-store"});
+    loadedFromGithubWeeks.add(weekKey);
+    if(res.status===401 || res.status===403){
+      // Invalid/expired token, or a leftover dummy value from before EDIT_AUTO_CONFIG held a
+      // real token — surface this clearly instead of silently looking "connected" with no data.
+      const err = new Error(`인증 실패 (${res.status})`);
+      err.isAuthError = true;
+      throw err;
     }
+    if(res.status===404) return false; // nothing saved for this week yet — keep what's already showing
+    if(!res.ok) throw new Error(`불러오기 실패 (${res.status})`);
+    const data = await res.json();
+    const payload = JSON.parse(base64ToUtf8(data.content));
+    // Guard against a corrupted/older save where categories was saved as an empty array —
+    // "[]" is truthy in JS, so a naive `if(payload.categories)` check would still wipe out
+    // the default rows. Only adopt the loaded categories if they actually contain rows.
+    let categoriesWereEmpty = false;
+    if(payload.categories && payload.categories.length > 0){
+      categories = payload.categories;
+    } else if(payload.categories){
+      categoriesWereEmpty = true; // present but empty — keep current defaults, and heal the file below
+    }
+    if(payload.entries && payload.entries[weekKey]) entries[weekKey] = payload.entries[weekKey];
+    if(categoriesWereEmpty){
+      console.warn(`data/${weekKey}.json had an empty categories list — keeping the default rows and re-saving to fix the file.`);
+      saveWeekToGithub(weekKey); // self-heal: re-commit with the correct (non-empty) categories
+    }
+    return true;
   }
 
   // ---------- "이 브라우저에 저장" (remember on this device) ----------
@@ -1358,8 +1360,9 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     try{
       const token = await decryptToken(EDIT_AUTO_CONFIG.enc, password);
       const cfg = { owner: GH_AUTO_CONFIG.owner, repo: GH_AUTO_CONFIG.repo, branch: GH_AUTO_CONFIG.branch, path: GH_AUTO_CONFIG.path, token };
+      const ok = await connectWithConfig(cfg); // connectWithConfig already reverts state + explains if this fails
+      if(!ok) return false;
       if(remember) rememberGhConfig({...cfg, editUnlocked:true});
-      await connectWithConfig(cfg);
       setEditButtonsState(true);
       return true;
     }catch(err){
@@ -1481,16 +1484,35 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
 
   // ---------- Connect + load a week's data, then update all the status UI ----------
   // Always starts read-only; callers that want editing unlocked (attemptEditUnlock) flip it
-  // back on right after this resolves.
+  // back on right after this resolves. Returns true on success, false if the token turned out
+  // to be invalid (wrong/leftover token) — callers should undo the "connected" UI in that case.
   async function connectWithConfig(cfg){
     ghConfig = cfg;
     setAccessButtonsState(true);
     setEditButtonsState(false);
     setBannerState("loading");
     const key = iso(weekStart);
-    await loadWeekFromGithub(key);
-    render();
-    setBannerState("connected");
+    try{
+      await loadWeekFromGithub(key);
+      render();
+      setBannerState("connected");
+      return true;
+    }catch(err){
+      console.error(err);
+      ghConfig = null;
+      entries = {};
+      loadedFromGithubWeeks.clear();
+      ensureWeek(key);
+      setAccessButtonsState(false);
+      setBannerState("demo");
+      render();
+      if(err.isAuthError){
+        alert("접속 정보가 올바르지 않습니다. 토큰이 잘못되었거나 만료되었을 수 있어요 — 관리자에게 문의해주세요.");
+      }else{
+        alert("데이터를 불러오는 중 문제가 발생했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.");
+      }
+      return false;
+    }
   }
 
   async function runAutoConnect(passphrase, remember){
@@ -1501,8 +1523,9 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     try{
       const token = await decryptToken(GH_AUTO_CONFIG.enc, passphrase);
       const cfg = { owner: GH_AUTO_CONFIG.owner, repo: GH_AUTO_CONFIG.repo, branch: GH_AUTO_CONFIG.branch, path: GH_AUTO_CONFIG.path, token };
+      const ok = await connectWithConfig(cfg); // connectWithConfig already reverts state + explains if this fails
+      if(!ok) return false;
       if(remember) rememberGhConfig(cfg);
-      await connectWithConfig(cfg);
       return true;
     }catch(err){
       console.error(err);
@@ -1548,8 +1571,9 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   // ---------- On page load: reconnect automatically if this browser already has a saved connection ----------
   const remembered = loadRememberedGhConfig();
   if(remembered && remembered.owner && remembered.repo && remembered.token){
-    connectWithConfig(remembered).then(()=>{ // zero-friction — no prompt at all
-      if(remembered.editUnlocked) setEditButtonsState(true);
+    connectWithConfig(remembered).then(ok=>{ // zero-friction — no prompt at all
+      if(ok && remembered.editUnlocked) setEditButtonsState(true);
+      if(!ok) forgetGhConfig(); // stale/invalid saved token — don't keep failing silently on every reload
     });
   } else if(GH_AUTO_CONFIG.enc && GH_AUTO_CONFIG.enc.data){
     openAccessModal(); // admin has set up an access password — ask for it

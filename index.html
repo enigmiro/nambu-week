@@ -510,7 +510,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"keIGo+NhCb008xJjGpq8GQ==","iv":"2W+BNeOeh3qp5iK3","data":"cwCa0Cp4DDb/HWfPc0y6pGHMCrtL/45t9UTOMCiScQ/MXcuNKhm0tHhMqcMLKJBvYS0cNzGS2FYvlpp/tdNP3nVFRoWu/4FBXicmgpO1DJ6tq2GrS7rctZcialhrurCQQf+53jixatA8TURjyw=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   // =====================================================================================
@@ -523,7 +523,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   // 비워두면 "편집하기" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
   // =====================================================================================
   const EDIT_AUTO_CONFIG = {
-    enc: {"salt":"a0aaVx9sIAQxEulugYBgUQ==","iv":"Uakt30W86Qhwfg31","data":"2KIxQM07IMzhR8gGqSy9Bs73gKBuuQtVgdQMDojrf4rWkEQn4uLz1ZJT6Fs8G40Dnu+XT52oR6p/0zLGtmc6AalyX7wS1iB8+1QkCDJQlXTukSY1ghUL5J287sxaSuZV4+dy4IjGg0TaVgtViA=="} // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -536,7 +536,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   ];
   // entries[weekKey][categoryId][dayIndex] = [{id,time,title,loc}, ...]
   let entries = {};
-  let weekStart = mondayOf(new Date(2026,7,31)); // default: matches uploaded sheet (8/31 Mon)
+  let weekStart = mondayOf(new Date()); // always starts on the current real week
 
   let editing = null; // {weekKey, catId, dayIndex}
 
@@ -746,9 +746,25 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   }
 
   // ---------- navigation ----------
+  // Only the previous, current, and next week (relative to today, recomputed fresh each check
+  // so the window naturally slides forward day by day) are reachable — keeps people from
+  // wandering off into distant weeks.
+  function thisWeekStart(){ return mondayOf(new Date()); }
+  function isWeekNavigable(start){
+    const min = addDays(thisWeekStart(), -7);
+    const max = addDays(thisWeekStart(), 7);
+    return start.getTime() >= min.getTime() && start.getTime() <= max.getTime();
+  }
+  function updateWeekNavButtons(){
+    document.getElementById("prevWeek").disabled = !isWeekNavigable(addDays(weekStart, -7));
+    document.getElementById("nextWeek").disabled = !isWeekNavigable(addDays(weekStart, 7));
+  }
+
   async function goToWeek(newStart){
+    if(!isWeekNavigable(newStart)) return; // outside the allowed 3-week window — ignore
     weekStart = newStart;
     render(); // show immediately with whatever we already have
+    updateWeekNavButtons();
     const key = iso(weekStart);
     if(ghConfig && !loadedFromGithubWeeks.has(key)){
       setBannerState("loading");
@@ -762,6 +778,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   document.getElementById("prevWeek").addEventListener("click", ()=> goToWeek(addDays(weekStart,-7)));
   document.getElementById("nextWeek").addEventListener("click", ()=> goToWeek(addDays(weekStart,7)));
   document.getElementById("gotoToday").addEventListener("click", ()=> goToWeek(mondayOf(new Date())));
+  updateWeekNavButtons();
 
   document.getElementById("addRowBtn").addEventListener("click", ()=>{
     const label = prompt("새 행 이름을 입력하세요 (예: 유치원, 행정실 등)");

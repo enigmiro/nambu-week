@@ -1073,7 +1073,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     return entries[weekKey][catId][dayIndex];
   }
 
-  // ---------- shared entries: apply one entry to multiple rows (교육장/교육지원국장/교육행정국장 등) ----------
+  // ---------- shared entries: apply one entry to multiple rows (교육장/교육지원국장/행정지원국장 등) ----------
   function findGroupEntry(weekKey, catId, dayIndex, groupId){
     return entries[weekKey][catId][dayIndex].find(e=> e.groupId===groupId);
   }
@@ -1164,7 +1164,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
       row1.querySelector(".title-fld").addEventListener("input", e=>{ ent.title = e.target.value; liveSave(); });
       row2.querySelector(".loc-fld").addEventListener("input", e=>{ ent.loc = e.target.value; liveSave(); });
 
-      // "적용 대상" — apply the same entry to other rows (e.g. 교육장/교육지원국장/교육행정국장)
+      // "적용 대상" — apply the same entry to other rows (e.g. 교육장/교육지원국장/행정지원국장)
       if(categories.length>1){
         const shareWrap = document.createElement("div");
         shareWrap.className = "share-wrap";

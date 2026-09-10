@@ -520,7 +520,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"keIGo+NhCb008xJjGpq8GQ==","iv":"2W+BNeOeh3qp5iK3","data":"cwCa0Cp4DDb/HWfPc0y6pGHMCrtL/45t9UTOMCiScQ/MXcuNKhm0tHhMqcMLKJBvYS0cNzGS2FYvlpp/tdNP3nVFRoWu/4FBXicmgpO1DJ6tq2GrS7rctZcialhrurCQQf+53jixatA8TURjyw=="} // ← encrypt.html 결과로 교체
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체
   };
 
   // =====================================================================================
@@ -533,7 +533,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   // 비워두면 "편집하기" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
   // =====================================================================================
   const EDIT_AUTO_CONFIG = {
-    enc: {"salt":"a0aaVx9sIAQxEulugYBgUQ==","iv":"Uakt30W86Qhwfg31","data":"2KIxQM07IMzhR8gGqSy9Bs73gKBuuQtVgdQMDojrf4rWkEQn4uLz1ZJT6Fs8G40Dnu+XT52oR6p/0zLGtmc6AalyX7wS1iB8+1QkCDJQlXTukSY1ghUL5J287sxaSuZV4+dy4IjGg0TaVgtViA=="} // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
+    enc: { salt: "", iv: "", data: "" } // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
   };
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
@@ -802,6 +802,14 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   });
 
   document.getElementById("printBtn").addEventListener("click", ()=> window.print());
+
+  // Register the service worker — Chrome/Android will not offer "Add to Home Screen"
+  // (won't fire beforeinstallprompt) without one, even if the manifest/icons are fine.
+  // Requires HTTPS (or localhost) and a real same-origin file, so this silently does
+  // nothing when opened as a local file:// — that's expected, not an error.
+  if("serviceWorker" in navigator && (location.protocol==="https:" || location.hostname==="localhost")){
+    navigator.serviceWorker.register("sw.js").catch(err=> console.warn("서비스 워커 등록 실패:", err));
+  }
 
   // ---------- "홈 화면에 추가" (Add to Home Screen) ----------
   // Android/Chrome supports a native one-tap install prompt (beforeinstallprompt). iOS Safari

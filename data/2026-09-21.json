@@ -29,6 +29,13 @@
             "loc": "만석초 정문"
           },
           {
+            "id": "e51z7vsj",
+            "groupId": "e51z7vsj",
+            "time": "10:00",
+            "title": "학교 방문",
+            "loc": "송현초"
+          },
+          {
             "id": "e99iohtm",
             "groupId": "e99iohtm",
             "time": "13:00",
@@ -121,6 +128,13 @@
             "loc": "만석초 정문"
           },
           {
+            "id": "e46s3sc6",
+            "groupId": "e51z7vsj",
+            "time": "10:00",
+            "title": "학교 방문",
+            "loc": "송현초"
+          },
+          {
             "id": "elieo227",
             "groupId": "e99iohtm",
             "time": "13:00",
@@ -190,6 +204,13 @@
       },
       "c3": {
         "0": [
+          {
+            "id": "ecbrvdm3",
+            "groupId": "e51z7vsj",
+            "time": "10:00",
+            "title": "학교 방문",
+            "loc": "송현초"
+          },
           {
             "id": "e8wgjo40",
             "groupId": "e99iohtm",

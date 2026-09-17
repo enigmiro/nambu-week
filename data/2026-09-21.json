@@ -22,13 +22,6 @@
       "c1": {
         "0": [
           {
-            "id": "e51z7vsj",
-            "groupId": "e51z7vsj",
-            "time": "10:00",
-            "title": "학교 방문",
-            "loc": "송현초"
-          },
-          {
             "id": "e99iohtm",
             "groupId": "e99iohtm",
             "time": "13:00",
@@ -114,13 +107,6 @@
       "c2": {
         "0": [
           {
-            "id": "e46s3sc6",
-            "groupId": "e51z7vsj",
-            "time": "10:00",
-            "title": "학교 방문",
-            "loc": "송현초"
-          },
-          {
             "id": "elieo227",
             "groupId": "e99iohtm",
             "time": "13:00",
@@ -196,13 +182,6 @@
             "time": "09:00",
             "title": "학교 방문",
             "loc": "만석초"
-          },
-          {
-            "id": "ecbrvdm3",
-            "groupId": "e51z7vsj",
-            "time": "10:00",
-            "title": "학교 방문",
-            "loc": "송현초"
           },
           {
             "id": "e8wgjo40",

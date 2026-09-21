@@ -57,18 +57,32 @@
         ],
         "4": [
           {
+            "id": "eyh5nyob",
+            "groupId": "eyh5nyob",
+            "time": "09:30",
+            "title": "교육감-교육장 주간 정례회의",
+            "loc": "시교육청"
+          },
+          {
             "id": "e32gs0n2",
             "groupId": "e32gs0n2",
-            "time": "11:00",
+            "time": "11:30",
             "title": "부교육감 성과면담",
             "loc": "시교육청"
           },
           {
             "id": "e02z2uno",
             "groupId": "e02z2uno",
-            "time": "14:30",
+            "time": "14:00",
             "title": "학교 방문",
             "loc": "연학초, 문학초"
+          },
+          {
+            "id": "e5scrs23",
+            "groupId": "e5scrs23",
+            "time": "16:00",
+            "title": "제107회 전국체육대회 참가 개요 및 인천선수단 결단식",
+            "loc": "선학체육관"
           }
         ],
         "5": [

@@ -29,13 +29,6 @@
             "loc": "만석초, 송현초"
           },
           {
-            "id": "e99iohtm",
-            "groupId": "e99iohtm",
-            "time": "13:00",
-            "title": "주간공감회의",
-            "loc": "교육장실"
-          },
-          {
             "id": "e2b9miba",
             "groupId": "e2b9miba",
             "time": "14:00",
@@ -121,13 +114,6 @@
             "loc": "윤슬초"
           },
           {
-            "id": "elieo227",
-            "groupId": "e99iohtm",
-            "time": "13:00",
-            "title": "주간공감회의",
-            "loc": "교육장실"
-          },
-          {
             "id": "elrl00u8",
             "groupId": "e2b9miba",
             "time": "14:00",
@@ -193,8 +179,8 @@
           {
             "id": "e8wgjo40",
             "groupId": "e99iohtm",
-            "time": "13:00",
-            "title": "주간공감회의",
+            "time": "10:00",
+            "title": "2026년 청렴도 향상을 위한 학교 계약 실무·실습 계약",
             "loc": "교육장실"
           }
         ],

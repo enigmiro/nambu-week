@@ -53,15 +53,7 @@
             "loc": ""
           }
         ],
-        "3": [
-          {
-            "id": "eerixuyp",
-            "groupId": "eerixuyp",
-            "time": "10:00",
-            "title": "월례조회",
-            "loc": "대회의실"
-          }
-        ],
+        "3": [],
         "4": [
           {
             "id": "eyh5nyob",
@@ -127,8 +119,8 @@
             "id": "es0c2syr",
             "groupId": "eerixuyp",
             "time": "10:00",
-            "title": "월례조회",
-            "loc": "대회의실"
+            "title": "교육현안 대응 비상대책반 회의",
+            "loc": "시교육청"
           }
         ],
         "4": [
@@ -178,15 +170,7 @@
             "loc": "영상회의실"
           }
         ],
-        "3": [
-          {
-            "id": "ex2pn1zp",
-            "groupId": "eerixuyp",
-            "time": "10:00",
-            "title": "월례조회",
-            "loc": "대회의실"
-          }
-        ],
+        "3": [],
         "4": [
           {
             "id": "e3mqljya",

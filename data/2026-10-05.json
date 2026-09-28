@@ -48,6 +48,13 @@
         ],
         "3": [
           {
+            "id": "e7228wmz",
+            "groupId": "e7228wmz",
+            "time": "10:30",
+            "title": "학교방문",
+            "loc": "주안북초,서화초"
+          },
+          {
             "id": "e3swzkwg",
             "groupId": "e5ph5f8u",
             "time": "14:00",
@@ -88,6 +95,13 @@
         ],
         "3": [
           {
+            "id": "ewpiwfya",
+            "groupId": "e7228wmz",
+            "time": "10:30",
+            "title": "학교방문",
+            "loc": "주안북초,서화초"
+          },
+          {
             "id": "eu0c6z8g",
             "groupId": "e5ph5f8u",
             "time": "14:00",
@@ -120,6 +134,13 @@
           }
         ],
         "3": [
+          {
+            "id": "ewh64g0i",
+            "groupId": "e7228wmz",
+            "time": "10:30",
+            "title": "학교방문",
+            "loc": "주안북초,서화초"
+          },
           {
             "id": "e5ph5f8u",
             "groupId": "e5ph5f8u",

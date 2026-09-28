@@ -34,6 +34,13 @@
             "time": "14:00",
             "title": "월간공감회의",
             "loc": "교육장실"
+          },
+          {
+            "id": "e9ojbwfe",
+            "groupId": "ebqmguuz",
+            "time": "16:00",
+            "title": "옹진군 교육혁신선도지역 관련 협의회",
+            "loc": "시의회"
           }
         ],
         "1": [],
@@ -98,13 +105,6 @@
       },
       "c2": {
         "0": [
-          {
-            "id": "ew9x6tiv",
-            "groupId": "ew9x6tiv",
-            "time": "11:00",
-            "title": "중등 교장자율장학협의회",
-            "loc": "제물포구 인근"
-          },
           {
             "id": "ex8o3q8e",
             "groupId": "e50nr3yo",

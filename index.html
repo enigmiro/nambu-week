@@ -8,21 +8,14 @@
 <!-- PWA: lets phones "Add to Home Screen" as an app-like icon that opens without browser chrome -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#22344a">
-<link rel="icon" href="icon-32.png" sizes="32x32">
-<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="icon" type="image/png" href="icon-32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="icon-192.png" sizes="192x192">
 <!-- iOS Safari doesn't read the manifest for "Add to Home Screen" — these tags cover it -->
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="주간일정표">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="주간일정표">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#22344a">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="주간일정표">
+<link rel="apple-touch-icon" href="icon-180.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -90,16 +83,23 @@
     outline:none;
   }
   .school-name:hover, .school-name:focus{border-color:var(--line-strong); background:#fff;}
+  body.read-only .school-name{cursor:default;}
+  body.read-only .school-name:hover{border-color:transparent; background:transparent;}
   .subtitle{font-size:12.5px; color:var(--ink-soft); letter-spacing:.1px;}
 
   .data-source-banner{
     display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
     background:#fbf1d4; border:1px solid #e3cd8f; color:#5c4a12;
     font-size:13px; padding:10px 14px; border-radius:7px; margin:0 0 10px;
+    text-align:center;
   }
   .data-source-banner.connected{
     background:#e7f2ea; border-color:#a8cdb3; color:#20522f;
   }
+  .data-source-banner.edit-mode{
+    background:#e8eef6; border-color:#a9bdd6; color:var(--navy-deep);
+  }
+  .data-source-banner .mode-note{font-size:12px; opacity:.85;}
   .data-source-banner .btn{padding:4px 11px; font-size:12px;}
 
   .toolbar{
@@ -137,8 +137,6 @@
   .btn.danger{color:var(--sun-red);}
   .week-range{font-size:17px; font-weight:700; color:var(--navy-deep); min-width:170px; text-align:center;}
   .action-group{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
-  .dir-status{font-size:11.5px; color:var(--ink-soft);}
-  .dir-status.connected{color:#3f8a5c; font-weight:600;}
 
   /* ---------- Table ---------- */
   .table-scroll-wrap{position:relative;}
@@ -315,12 +313,28 @@
   .save-indicator.show{opacity:1;}
   label.fld-label{font-size:10.5px; color:var(--ink-soft); display:block; margin-bottom:2px;}
 
+  /* ---------- Toast (저장 성공/실패 등 알림) ---------- */
+  .toast{
+    position:fixed; left:50%; bottom:24px;
+    transform:translate(-50%, 12px);
+    max-width:min(92vw, 520px);
+    padding:10px 16px; border-radius:7px;
+    background:var(--navy-deep); color:#fff;
+    font-size:13px; line-height:1.55; white-space:pre-line;
+    box-shadow:0 10px 28px rgba(0,0,0,.25);
+    z-index:90; opacity:0; pointer-events:none; cursor:pointer;
+    transition:opacity .18s, transform .18s;
+  }
+  .toast.show{opacity:1; transform:translate(-50%, 0); pointer-events:auto;}
+  .toast.ok{background:#20522f;}
+  .toast.error{background:var(--sun-red);}
+
   @media print{
     @page{ size: landscape; }
     body{background:#fff; padding:0;}
     .sheet{border:none; max-width:none; padding:6px;}
     .toolbar, .add-row-wrap, .row-del, .add-hint, footer.hint, .school-name{cursor:default;}
-    .btn, .row-del, .data-source-banner{display:none !important;}
+    .btn, .row-del, .data-source-banner, .toast{display:none !important;}
     .table-scroll-wrap.has-overflow::after{display:none;}
   }
 
@@ -329,7 +343,8 @@
   body.pdf-capture footer.hint,
   body.pdf-capture .row-del,
   body.pdf-capture .add-hint,
-  body.pdf-capture .data-source-banner{ display:none !important; }
+  body.pdf-capture .data-source-banner,
+  body.pdf-capture .toast{ display:none !important; }
   body.pdf-capture .sheet{ border:none; }
   body.pdf-capture .day-cell.empty{ min-height:70px; }
   body.pdf-capture .table-scroll-wrap.has-overflow::after{ display:none; }
@@ -379,7 +394,7 @@
 
 <div class="sheet">
   <div class="title-block">
-    <span class="school-name" id="schoolName" contenteditable="true" spellcheck="false">교육장-국장 주간 일정표</span>
+    <span class="school-name" id="schoolName" contenteditable="false" spellcheck="false">교육장-국장 주간 일정표</span>
   </div>
 
   <div class="data-source-banner" id="dataSourceBanner">
@@ -396,7 +411,7 @@
     <div class="action-group">
       <button class="btn small primary" id="accessBtn">일정표 접속</button>
       <button class="btn small" id="editModeBtn">편집하기</button>
-      <button class="btn small ghost" id="releaseBtn" style="display:none;" title="연결을 끊고 예시 데이터로 돌아갑니다">일정표 해제</button>
+      <button class="btn small ghost" id="releaseBtn" style="display:none;" title="연결을 끊고 화면을 비웁니다">일정표 해제</button>
       <button class="btn small ghost" id="lockModeBtn" style="display:none;" title="편집을 잠그고 읽기 전용으로 돌아갑니다">편집 잠그기</button>
       <button class="btn small" id="addRowBtn" style="display:none;">+ 행 추가(수정)</button>
       <button class="btn small" id="importBtn" style="display:none;">불러오기</button>
@@ -443,12 +458,13 @@
 
 </div>
 <div id="pdfSpinner" class="pdf-overlay"><div class="pdf-box">PDF 생성 중…</div></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<!-- 일정표 접속 (passphrase-based connect; only works once an admin has set up GH_AUTO_CONFIG with an encrypted token) -->
+<!-- 일정표 접속 (열람 전용: 읽기 권한만 있는 토큰으로 연결) -->
 <div class="backdrop" id="passBackdrop">
   <div class="modal" style="max-width:340px;">
     <h3>일정표 접속</h3>
-    <div class="modal-sub">관리자가 알려준 암호를 입력하면 저장된 일정표에 연결됩니다.</div>
+    <div class="modal-sub">관리자가 알려준 암호를 입력하면 일정표를 볼 수 있습니다(읽기 전용, 다음 주까지).</div>
     <div class="entry-edit">
       <label class="fld-label">암호(passphrase)</label>
       <input type="password" id="autoConnectPass" placeholder="암호 입력">
@@ -464,11 +480,11 @@
   </div>
 </div>
 
-<!-- 편집하기 (edit-password gate; unlocks editing on top of an already read-only "일정표 접속" session) -->
+<!-- 편집하기 (편집 권한 토큰으로 연결 + 편집 잠금 해제를 한 번에) -->
 <div class="backdrop" id="editBackdrop">
   <div class="modal" style="max-width:340px;">
     <h3>편집하기</h3>
-    <div class="modal-sub">편집 비밀번호를 입력하면 접속과 편집 잠금 해제가 한 번에 됩니다.</div>
+    <div class="modal-sub">편집 비밀번호를 입력하면 접속과 편집 잠금 해제가 한 번에 됩니다. 편집 모드에서는 8주 후까지 일정을 입력할 수 있습니다.</div>
     <div class="entry-edit">
       <label class="fld-label">편집 비밀번호</label>
       <input type="password" id="editPass" placeholder="비밀번호 입력">
@@ -520,32 +536,50 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   "use strict";
 
   // =====================================================================================
-  // 일정표 접속 설정 (관리자 전용)
-  // encrypt.html 도구로 만든 암호화 결과를 아래 enc: {...} 자리에 붙여넣으면,
-  // 직원들이 "일정표 접속" 버튼에서 암호(passphrase)만 입력해 GitHub에 연결할 수 있습니다.
-  // 비워두면(enc.data가 빈 문자열이면) "일정표 접속" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
-  // 절대 토큰 원문을 여기 직접 적지 마세요 — 반드시 암호화된 값만 넣으세요.
+  // [관리자 안내] 토큰 권한 분리
+  // -------------------------------------------------------------------------------------
+  // 이 페이지는 GitHub 토큰 두 개를 사용합니다. 반드시 "서로 다른 토큰"을 넣으세요.
+  //
+  //   1) 열람용 토큰 → GH_AUTO_CONFIG.enc   ("일정표 접속" 암호로 암호화)
+  //      - GitHub > Settings > Developer settings > Personal access tokens > Fine-grained tokens
+  //      - Repository access: Only select repositories → nambu-week 하나만
+  //      - Repository permissions → Contents: Read-only
+  //
+  //   2) 편집용 토큰 → EDIT_AUTO_CONFIG.enc  ("편집하기" 비밀번호로 암호화)
+  //      - 위와 동일하되 Contents: Read and write
+  //
+  // 두 토큰 모두 만료일(Expiration)을 지정하고, 기존에 쓰던 토큰은 GitHub에서 삭제(Revoke)하세요.
+  // 열람용 토큰이 읽기 전용이면, 열람 암호만 아는 사람이 개발자 도구로 토큰을 꺼내도
+  // 일정을 바꿀 수 없습니다. 저장소(nambu-week)는 반드시 Private으로 두세요.
+  //
+  // 암호화 값은 encrypt.html 도구로 만든 결과를 아래 enc: {...} 자리에 그대로 붙여넣습니다.
+  // 절대 토큰 원문을 여기 직접 적지 마세요. 암호는 길게(12자 이상 권장) 정하세요.
+  // 편집 모드에서 두 토큰이 같은 것으로 확인되면 화면에 경고가 표시됩니다.
   // =====================================================================================
   const GH_AUTO_CONFIG = {
     owner: "enigmiro",
     repo: "nambu-week",
     branch: "main",
     path: "data",
-    enc: {"salt":"keIGo+NhCb008xJjGpq8GQ==","iv":"2W+BNeOeh3qp5iK3","data":"cwCa0Cp4DDb/HWfPc0y6pGHMCrtL/45t9UTOMCiScQ/MXcuNKhm0tHhMqcMLKJBvYS0cNzGS2FYvlpp/tdNP3nVFRoWu/4FBXicmgpO1DJ6tq2GrS7rctZcialhrurCQQf+53jixatA8TURjyw=="} // ← encrypt.html 결과로 교체
+    // ↓ 열람용(Contents: Read-only) 토큰을 "일정표 접속" 암호로 암호화한 값으로 교체
+    enc: {"salt":"keIGo+NhCb008xJjGpq8GQ==","iv":"2W+BNeOeh3qp5iK3","data":"cwCa0Cp4DDb/HWfPc0y6pGHMCrtL/45t9UTOMCiScQ/MXcuNKhm0tHhMqcMLKJBvYS0cNzGS2FYvlpp/tdNP3nVFRoWu/4FBXicmgpO1DJ6tq2GrS7rctZcialhrurCQQf+53jixatA8TURjyw=="}
+  };
+
+  const EDIT_AUTO_CONFIG = {
+    // ↓ 편집용(Contents: Read and write) 토큰을 "편집 비밀번호"로 암호화한 값으로 교체
+    //   (owner/repo/branch/path는 위 GH_AUTO_CONFIG 값을 그대로 사용합니다)
+    enc: {"salt":"a0aaVx9sIAQxEulugYBgUQ==","iv":"Uakt30W86Qhwfg31","data":"2KIxQM07IMzhR8gGqSy9Bs73gKBuuQtVgdQMDojrf4rWkEQn4uLz1ZJT6Fs8G40Dnu+XT52oR6p/0zLGtmc6AalyX7wS1iB8+1QkCDJQlXTukSY1ghUL5J287sxaSuZV4+dy4IjGg0TaVgtViA=="}
   };
 
   // =====================================================================================
-  // 편집 비밀번호 설정 (관리자 전용, 선택 사항)
-  // "편집하기" 버튼은 이 설정 하나로 접속과 편집 잠금 해제를 동시에 처리합니다 — 편집하는
-  // 사람은 "일정표 접속"을 따로 누를 필요 없이 이 버튼과 편집 비밀번호만 쓰면 됩니다.
-  // encrypt.html 도구에서 "토큰" 칸에 실제 GitHub 토큰을 넣고(위 GH_AUTO_CONFIG와 같은 토큰을
-  // 써도 되고, 별도 토큰을 써도 됩니다), 편집 비밀번호로 암호화한 결과를 아래 enc: {...}에
-  // 붙여넣으세요. owner/repo/branch/path는 위 GH_AUTO_CONFIG의 값을 그대로 사용합니다.
-  // 비워두면 "편집하기" 버튼을 눌러도 아직 설정되지 않았다고 안내됩니다.
+  // 조회·편집 가능 기간 (이번 주 기준, 매일 새로 계산되어 자연스럽게 앞으로 밀려갑니다)
+  //   - 공통: 지난주까지 되돌아볼 수 있음
+  //   - 열람자("일정표 접속"): 다음 주까지
+  //   - 편집자("편집하기"): 8주 후까지 보고 편집할 수 있음
   // =====================================================================================
-  const EDIT_AUTO_CONFIG = {
-    enc: {"salt":"a0aaVx9sIAQxEulugYBgUQ==","iv":"Uakt30W86Qhwfg31","data":"2KIxQM07IMzhR8gGqSy9Bs73gKBuuQtVgdQMDojrf4rWkEQn4uLz1ZJT6Fs8G40Dnu+XT52oR6p/0zLGtmc6AalyX7wS1iB8+1QkCDJQlXTukSY1ghUL5J287sxaSuZV4+dy4IjGg0TaVgtViA=="} // ← encrypt.html 결과로 교체 (실제 토큰을 편집 비밀번호로 암호화)
-  };
+  const MAX_WEEKS_BEHIND = 1;
+  const VIEW_MAX_WEEKS_AHEAD = 1;
+  const EDIT_MAX_WEEKS_AHEAD = 8;
 
   const DOW = ["월","화","수","목","금","토","일"]; // Mon..Sun columns shown in the grid (index 6 = Sunday, at the end)
 
@@ -558,11 +592,38 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   // Snapshot of the code-defined locked rows — used to override stale labels from an older
   // saved file (e.g. a previous rename in the code shouldn't get silently undone by old data).
   const DEFAULT_LOCKED_CATEGORIES = categories.filter(c=>c.locked).map(c=>({...c}));
-  // entries[weekKey][categoryId][dayIndex] = [{id,time,title,loc}, ...]
+  // entries[weekKey][categoryId][dayIndex] = [{id,groupId,time,title,loc}, ...]
   let entries = {};
   let weekStart = mondayOf(new Date()); // always starts on the current real week
 
   let editing = null; // {weekKey, catId, dayIndex}
+
+  // ---------- connection state (declared up front: render()/navigation read these) ----------
+  // ghConfig.mode: "view" = 열람용 토큰, "edit" = 편집용 토큰. 토큰은 메모리에만 보관합니다
+  // ("이 브라우저에 저장"을 체크한 경우에만 localStorage에 남습니다).
+  let ghConfig = null;      // {owner, repo, branch, path, token, mode}
+  let viewCfg = null;       // 이번 세션에서 얻은 열람용 접속 정보 — 편집을 잠그면 이 토큰으로 되돌아감
+  let editUnlocked = false; // 편집 모드 여부 (편집용 토큰으로 접속했을 때만 true가 될 수 있음)
+  // Weeks already pulled from GitHub in this session (with the current token).
+  const loadedFromGithubWeeks = new Set();
+  let weekLoadingKey = null; // week currently being fetched — its cells can't be edited until it arrives
+  // Saves run one at a time; overlapping saves for the same file cause a "sha does not match" conflict.
+  let ghSaveQueue = Promise.resolve();
+  let pendingSaves = 0;
+  let sameTokenWarned = false;
+
+  // ---------- toast (저장 결과 등 짧은 알림) ----------
+  const toastEl = document.getElementById("toast");
+  let toastTimer = null;
+  function showToast(msg, type, sticky){
+    toastEl.textContent = msg;
+    toastEl.className = "toast show" + (type ? " " + type : "");
+    clearTimeout(toastTimer);
+    if(!sticky){
+      toastTimer = setTimeout(()=> toastEl.classList.remove("show"), type==="error" ? 7000 : 1800);
+    }
+  }
+  toastEl.addEventListener("click", ()=> toastEl.classList.remove("show"));
 
   // ---------- helpers ----------
   function mondayOf(d){
@@ -580,6 +641,11 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   function iso(d){
     const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
     return `${y}-${m}-${day}`;
+  }
+  // "2026-10-05" → local-time Date (new Date("YYYY-MM-DD") would parse as UTC and can shift a day)
+  function parseIsoLocal(s){
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||""));
+    return m ? new Date(+m[1], +m[2]-1, +m[3]) : null;
   }
   function weekDates(start){
     // returns 7 dates for the week: index 0 = Monday ("start"), ... index 6 = Sunday (the day after Saturday).
@@ -638,6 +704,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     if(!entries[key]) entries[key] = {};
     categories.forEach(c=>{
       if(!entries[key][c.id]) entries[key][c.id] = {0:[],1:[],2:[],3:[],4:[],5:[],6:[]};
+      for(let d=0; d<7; d++){ if(!Array.isArray(entries[key][c.id][d])) entries[key][c.id][d] = []; }
     });
   }
 
@@ -755,7 +822,14 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
         hint.textContent = "+ 편집";
         wrap.appendChild(hint);
 
-        wrap.addEventListener("click", ()=>{ if(editUnlocked) openEditor(key, cat.id, day, cat.label, dates[day]); });
+        wrap.addEventListener("click", ()=>{
+          if(!editUnlocked) return;
+          if(weekLoadingKey===key){
+            showToast("이 주의 일정을 불러오는 중입니다. 잠시 후 다시 눌러주세요.");
+            return;
+          }
+          openEditor(key, cat.id, day, cat.label, dates[day]);
+        });
         td.appendChild(wrap);
         tr.appendChild(td);
       }
@@ -766,17 +840,18 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   }
 
   function escapeHtml(s){
-    return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    return String(s==null ? "" : s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   }
 
   // ---------- navigation ----------
-  // Only the previous, current, and next week (relative to today, recomputed fresh each check
-  // so the window naturally slides forward day by day) are reachable — keeps people from
-  // wandering off into distant weeks.
+  // 이동 가능 범위는 권한에 따라 다릅니다: 열람자는 지난주~다음 주, 편집자는 지난주~8주 후.
+  // 기준(이번 주)은 확인할 때마다 새로 계산하므로 날짜가 지나면 범위도 함께 앞으로 이동합니다.
   function thisWeekStart(){ return mondayOf(new Date()); }
+  function maxWeeksAhead(){ return editUnlocked ? EDIT_MAX_WEEKS_AHEAD : VIEW_MAX_WEEKS_AHEAD; }
   function isWeekNavigable(start){
-    const min = addDays(thisWeekStart(), -7);
-    const max = addDays(thisWeekStart(), 7);
+    const base = thisWeekStart();
+    const min = addDays(base, -7*MAX_WEEKS_BEHIND);
+    const max = addDays(base, 7*maxWeeksAhead());
     return start.getTime() >= min.getTime() && start.getTime() <= max.getTime();
   }
   function updateWeekNavButtons(){
@@ -785,24 +860,32 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
   }
 
   async function goToWeek(newStart){
-    if(!isWeekNavigable(newStart)) return; // outside the allowed 3-week window — ignore
+    if(!isWeekNavigable(newStart)) return; // outside the allowed window for the current role — ignore
     weekStart = newStart;
     render(); // show immediately with whatever we already have
     updateWeekNavButtons();
     const key = iso(weekStart);
     if(ghConfig && !loadedFromGithubWeeks.has(key)){
+      const cfg = ghConfig;
+      weekLoadingKey = key;
       setBannerState("loading");
-      const found = await loadWeekFromGithub(key);
-      if(found) render(); // refresh with the data pulled from GitHub
-      setBannerState("connected");
-    } else if(ghConfig){
-      setBannerState("connected");
+      try{
+        const found = await loadWeekFromGithub(key, cfg);
+        if(found && iso(weekStart)===key) render(); // refresh with the data pulled from GitHub
+      }catch(err){
+        console.error(err);
+        showToast(err.isAuthError
+          ? "일정을 불러오지 못했습니다. 접속 권한이 만료되었을 수 있어요 — 관리자에게 문의해주세요."
+          : "일정을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.", "error");
+      }finally{
+        if(weekLoadingKey===key) weekLoadingKey = null;
+        if(ghConfig) setBannerState("connected");
+      }
     }
   }
   document.getElementById("prevWeek").addEventListener("click", ()=> goToWeek(addDays(weekStart,-7)));
   document.getElementById("nextWeek").addEventListener("click", ()=> goToWeek(addDays(weekStart,7)));
-  document.getElementById("gotoToday").addEventListener("click", ()=> goToWeek(mondayOf(new Date())));
-  updateWeekNavButtons();
+  document.getElementById("gotoToday").addEventListener("click", ()=> goToWeek(thisWeekStart()));
 
   document.getElementById("addRowBtn").addEventListener("click", ()=>{
     const label = prompt("새 행 이름을 입력하세요 (예: 유치원, 행정실 등)");
@@ -1109,10 +1192,15 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     reader.onload = ()=>{
       try{
         const data = JSON.parse(reader.result);
-        if(data.categories) categories = data.categories;
-        if(data.entries) entries = data.entries;
-        if(data.weekStart) weekStart = mondayOf(new Date(data.weekStart));
+        if(Array.isArray(data.categories) && data.categories.length>0) categories = data.categories;
+        if(data.entries && typeof data.entries==="object") entries = data.entries;
+        if(data.weekStart){
+          const ws = parseIsoLocal(data.weekStart);
+          if(ws && isWeekNavigable(mondayOf(ws))) weekStart = mondayOf(ws); // 허용 범위 밖이면 현재 주 유지
+        }
         render();
+        updateWeekNavButtons();
+        showToast("파일을 불러왔습니다. 칸을 편집해 '저장 및 닫기'를 눌러야 GitHub에 반영됩니다.");
       }catch(err){
         alert("파일을 읽는 중 오류가 발생했습니다. 올바른 JSON 파일인지 확인해주세요.");
       }
@@ -1209,21 +1297,28 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
       row1.innerHTML = `
         <div style="max-width:96px;">
           <label class="fld-label">시간</label>
-          <input type="text" class="time-fld" placeholder="0900" value="${escapeAttr(ent.time||"")}">
+          <input type="text" class="time-fld" placeholder="0900">
         </div>
         <div style="flex:1;">
           <label class="fld-label">내용</label>
-          <input type="text" class="title-fld" placeholder="일정 내용" value="${escapeAttr(ent.title||"")}">
+          <input type="text" class="title-fld" placeholder="일정 내용">
         </div>`;
       box.appendChild(row1);
 
       const row2 = document.createElement("div");
       row2.innerHTML = `
         <label class="fld-label">장소 (선택)</label>
-        <input type="text" class="loc-fld" placeholder="장소" value="${escapeAttr(ent.loc||"")}">`;
+        <input type="text" class="loc-fld" placeholder="장소">`;
       box.appendChild(row2);
 
+      // values set via .value (not an HTML attribute) so "&", "<" etc. round-trip exactly as typed
       const timeFld = row1.querySelector(".time-fld");
+      const titleFld = row1.querySelector(".title-fld");
+      const locFld = row2.querySelector(".loc-fld");
+      timeFld.value = ent.time || "";
+      titleFld.value = ent.title || "";
+      locFld.value = ent.loc || "";
+
       timeFld.addEventListener("input", e=>{ ent.time = e.target.value; liveSave(); });
       timeFld.addEventListener("blur", e=>{
         const norm = normalizeTime(e.target.value);
@@ -1231,8 +1326,8 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
         e.target.value = norm;
         liveSave();
       });
-      row1.querySelector(".title-fld").addEventListener("input", e=>{ ent.title = e.target.value; liveSave(); });
-      row2.querySelector(".loc-fld").addEventListener("input", e=>{ ent.loc = e.target.value; liveSave(); });
+      titleFld.addEventListener("input", e=>{ ent.title = e.target.value; liveSave(); });
+      locFld.addEventListener("input", e=>{ ent.loc = e.target.value; liveSave(); });
 
       // "적용 대상" — apply the same entry to other rows (e.g. 교육장/교육지원국장/행정지원국장)
       if(categories.length>1){
@@ -1268,8 +1363,6 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     });
   }
 
-  function escapeAttr(s){ return String(s).replace(/"/g,"&quot;"); }
-
   document.getElementById("addEntryBtn").addEventListener("click", ()=>{
     const newId = uid();
     currentEntries().push({id:newId, groupId:newId, time:"", title:"", loc:""});
@@ -1277,7 +1370,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     liveSave();
   });
 
-  // ---- live save: updates the underlying table immediately, no save button needed ----
+  // ---- live save: updates the underlying table immediately (GitHub 저장은 모달을 닫을 때) ----
   const saveIndicator = document.getElementById("saveIndicator");
   let saveTimer = null;
   let indicatorTimer = null;
@@ -1295,13 +1388,21 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     }, 250);
   }
   function flashSaved(){
-    saveIndicator.textContent = "저장됨";
+    saveIndicator.textContent = "반영됨 (닫으면 저장)";
     saveIndicator.classList.add("show");
     clearTimeout(indicatorTimer);
     indicatorTimer = setTimeout(()=> saveIndicator.classList.remove("show"), 900);
   }
 
   function closeModal(){
+    // flush a pending liveSave so the last keystrokes are propagated to shared copies before saving
+    if(saveTimer){
+      clearTimeout(saveTimer); saveTimer = null;
+      currentEntries().forEach(ent=>{
+        if(!ent.groupId) ent.groupId = ent.id;
+        propagateGroupContent(editing.weekKey, editing.dayIndex, ent.groupId, editing.catId, {time:ent.time, title:ent.title, loc:ent.loc});
+      });
+    }
     // normalize any time left unblurred, drop fully-empty entries (and their shared copies), then sort by time
     const raw = currentEntries().map(e=> ({...e, time: normalizeTime(e.time), groupId: e.groupId || e.id}));
     const kept = [];
@@ -1312,8 +1413,8 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     });
     const savedWeekKey = editing.weekKey, savedDayIndex = editing.dayIndex;
     entries[editing.weekKey][editing.catId][editing.dayIndex] = sortByTime(kept);
-    // also re-sort any other rows that received a copy of these entries via "공통 일정" (shared entries),
-    // so every affected cell — not just the one just edited — stays in time order
+    // keep the normalized time on shared copies too, and re-sort every affected cell
+    kept.forEach(e=> propagateGroupContent(savedWeekKey, savedDayIndex, e.groupId, editing.catId, {time:e.time, title:e.title, loc:e.loc}));
     categories.forEach(cat=>{
       if(cat.id===editing.catId) return;
       entries[savedWeekKey][cat.id][savedDayIndex] = sortByTime(entries[savedWeekKey][cat.id][savedDayIndex]);
@@ -1321,7 +1422,7 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     backdrop.classList.remove("open");
     editing = null;
     render();
-    saveWeekToGithub(savedWeekKey); // push to GitHub if connected (fire-and-forget)
+    saveWeekToGithub(savedWeekKey); // push to GitHub (편집 권한이 있을 때만 실제로 저장)
   }
   document.getElementById("closeModalBtn").addEventListener("click", closeModal);
   // Only close when BOTH the mousedown and the click landed on the backdrop itself —
@@ -1333,11 +1434,10 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     if(e.target===backdrop && backdropMouseDownOnSelf) closeModal();
     backdropMouseDownOnSelf = false;
   });
-  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && backdrop.classList.contains("open")) closeModal(); });
 
-  // ---------- GitHub: push the week's JSON straight into a repo via the Contents API ----------
-  let ghConfig = null; // {owner, repo, branch, path, token} — kept in memory only, never persisted
-  let editUnlocked = false; // "일정표 접속" is read-only; editing requires the separate edit password
+  // =====================================================================================
+  // GitHub 연결 (Contents API)
+  // =====================================================================================
 
   // Decrypts a token produced by encrypt.html. Wrong passphrase makes AES-GCM's
   // authentication check fail, so decryptToken() rejects cleanly rather than returning garbage.
@@ -1356,23 +1456,37 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     return new TextDecoder().decode(plainBuf);
   }
 
-  function setGhStatus(){
-    // status text next to the toolbar buttons was removed — the banner communicates
-    // connection state instead. Kept as a no-op so any remaining call sites are harmless.
+  function isEncConfigured(conf){ return !!(conf && conf.enc && conf.enc.data); }
+  function buildCfg(token, mode){
+    return { owner: GH_AUTO_CONFIG.owner, repo: GH_AUTO_CONFIG.repo, branch: GH_AUTO_CONFIG.branch, path: GH_AUTO_CONFIG.path, token, mode };
+  }
+  function ghHeaders(cfg){
+    return { "Authorization": `token ${cfg.token}`, "Accept": "application/vnd.github+json" };
+  }
+  function contentsUrl(cfg, weekKey){
+    return `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${cfg.path}/${weekKey}.json`;
+  }
+  function makeError(message, props){
+    const e = new Error(message);
+    Object.assign(e, props || {});
+    return e;
   }
 
+  // 화면 상단 배너: 접속 상태와 함께 현재 권한으로 볼 수 있는(편집할 수 있는) 기간을 안내합니다.
   function setBannerState(mode){
     // mode: 'demo' | 'loading' | 'connected'
     const el = document.getElementById("dataSourceBanner");
+    el.classList.remove("connected", "edit-mode");
     if(mode==="connected"){
-      el.classList.add("connected");
-      el.innerHTML = `일정표에 접속되었습니다 <button class="btn small primary" id="bannerConnectBtn">일정표 해제</button>`;
+      el.classList.add(editUnlocked ? "edit-mode" : "connected");
+      const note = editUnlocked
+        ? `편집 모드 · 지난주부터 ${EDIT_MAX_WEEKS_AHEAD}주 후까지 편집할 수 있습니다`
+        : `읽기 전용 · 지난주부터 다음 주까지 볼 수 있습니다`;
+      el.innerHTML = `일정표에 접속되었습니다 <span class="mode-note">(${note})</span> <button class="btn small primary" id="bannerConnectBtn">일정표 해제</button>`;
       document.getElementById("bannerConnectBtn").addEventListener("click", ()=> document.getElementById("releaseBtn").click());
     } else if(mode==="loading"){
-      el.classList.remove("connected");
       el.textContent = "접속하는 중…";
     } else {
-      el.classList.remove("connected");
       el.innerHTML = `일정표에 접속되지 않았습니다 <button class="btn small primary" id="bannerConnectBtn">일정표 접속</button>`;
       document.getElementById("bannerConnectBtn").addEventListener("click", ()=> document.getElementById("accessBtn").click());
     }
@@ -1391,73 +1505,89 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     return new TextDecoder().decode(bytes);
   }
 
-  // Weeks we've already pulled from GitHub in this session — avoids re-fetching (and possibly
-  // clobbering unsaved edits) every time the same week is revisited.
-  const loadedFromGithubWeeks = new Set();
-
-  async function loadWeekFromGithub(weekKey){
-    if(!ghConfig) return false;
-    const filePath = `${ghConfig.path}/${weekKey}.json`;
-    const api = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${filePath}`;
-    const headers = {
-      "Authorization": `token ${ghConfig.token}`,
-      "Accept": "application/vnd.github+json"
-    };
-    const res = await fetch(`${api}?ref=${encodeURIComponent(ghConfig.branch)}`, {headers, cache:"no-store"});
-    loadedFromGithubWeeks.add(weekKey);
-    if(res.status===401 || res.status===403){
-      // Invalid/expired token, or a leftover dummy value from before EDIT_AUTO_CONFIG held a
-      // real token — surface this clearly instead of silently looking "connected" with no data.
-      const err = new Error(`인증 실패 (${res.status})`);
-      err.isAuthError = true;
-      throw err;
+  // 토큰으로 저장소 자체에 접근할 수 있는지 먼저 확인합니다. Private 저장소에 권한 없는 토큰으로
+  // 접근하면 GitHub는 404를 돌려주는데, 이걸 "이 주 파일이 아직 없음"으로 오해하지 않기 위함입니다.
+  async function verifyRepoAccess(cfg){
+    const res = await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}`, {headers: ghHeaders(cfg), cache:"no-store"});
+    if(res.status===401 || res.status===403 || res.status===404){
+      throw makeError(`저장소 접근 불가 (${res.status})`, {isAuthError:true, status:res.status});
     }
-    if(res.status===404) return false; // nothing saved for this week yet — keep what's already showing
-    if(!res.ok) throw new Error(`불러오기 실패 (${res.status})`);
+    if(!res.ok) throw makeError(`저장소 확인 실패 (${res.status})`, {status:res.status});
+  }
+
+  async function loadWeekFromGithub(weekKey, cfg){
+    cfg = cfg || ghConfig;
+    if(!cfg) return false;
+    const res = await fetch(`${contentsUrl(cfg, weekKey)}?ref=${encodeURIComponent(cfg.branch)}`, {headers: ghHeaders(cfg), cache:"no-store"});
+    if(res.status===401 || res.status===403){
+      throw makeError(`인증 실패 (${res.status})`, {isAuthError:true, status:res.status});
+    }
+    if(res.status===404){ // nothing saved for this week yet — keep what's already showing
+      loadedFromGithubWeeks.add(weekKey);
+      return false;
+    }
+    if(!res.ok) throw makeError(`불러오기 실패 (${res.status})`, {status:res.status});
     const data = await res.json();
     const payload = JSON.parse(base64ToUtf8(data.content));
+    loadedFromGithubWeeks.add(weekKey);
     // Guard against a corrupted/older save where categories was saved as an empty array —
     // "[]" is truthy in JS, so a naive `if(payload.categories)` check would still wipe out
     // the default rows. Only adopt the loaded categories if they actually contain rows.
     let categoriesWereEmpty = false;
     let categoriesWereStale = false;
-    if(payload.categories && payload.categories.length > 0){
+    if(Array.isArray(payload.categories) && payload.categories.length > 0){
       // Locked rows (교육장 etc.) always take their name/definition from the current code —
       // an older save shouldn't be able to silently resurrect a since-renamed label. Only
       // custom (non-locked) rows are trusted as-is from the saved file.
-      const customFromSave = payload.categories.filter(c=>!c.locked);
+      const customFromSave = payload.categories.filter(c=>!c.locked && !DEFAULT_LOCKED_CATEGORIES.some(d=>d.id===c.id));
       const mergedLocked = DEFAULT_LOCKED_CATEGORIES.map(def=>{
         const saved = payload.categories.find(c=>c.id===def.id);
-        return saved && saved.label !== def.label ? (categoriesWereStale=true, {...def}) : (saved ? {...saved} : {...def});
+        if(saved && saved.label !== def.label){ categoriesWereStale = true; return {...def}; }
+        return saved ? {...saved, locked:true} : {...def};
       });
       categories = [...mergedLocked, ...customFromSave];
     } else if(payload.categories){
       categoriesWereEmpty = true; // present but empty — keep current defaults, and heal the file below
     }
     if(payload.entries && payload.entries[weekKey]) entries[weekKey] = payload.entries[weekKey];
+    ensureWeek(weekKey);
     if(categoriesWereEmpty || categoriesWereStale){
-      if(categoriesWereEmpty) console.warn(`data/${weekKey}.json had an empty categories list — keeping the default rows and re-saving to fix the file.`);
-      if(categoriesWereStale) console.warn(`data/${weekKey}.json had an outdated label for a locked row — using the current code's label and re-saving to fix the file.`);
-      saveWeekToGithub(weekKey); // self-heal: re-commit with the correct categories
+      if(categoriesWereEmpty) console.warn(`data/${weekKey}.json had an empty categories list — keeping the default rows.`);
+      if(categoriesWereStale) console.warn(`data/${weekKey}.json had an outdated label for a locked row — using the current code's label.`);
+      // self-heal: re-commit with the correct categories — 편집 권한일 때만 (열람자는 절대 쓰지 않음)
+      if(canWrite()) saveWeekToGithub(weekKey, {silent:true});
     }
     return true;
   }
 
   // ---------- "이 브라우저에 저장" (remember on this device) ----------
-  // Only meaningful when this file is opened directly in your own browser (not previewed inside
-  // Claude's chat window, where browser storage is sandboxed and won't persist).
-  const GH_REMEMBER_KEY = "weekly-schedule-gh-config-v1";
-  function rememberGhConfig(cfg){
-    try{ localStorage.setItem(GH_REMEMBER_KEY, JSON.stringify(cfg)); }catch(e){ console.warn("이 브라우저에 저장하지 못했습니다:", e); }
+  // 열람용과 편집용을 따로 저장합니다. 토큰만 저장하고 저장소 정보는 항상 코드의 설정값을 씁니다.
+  // "편집 잠그기"를 누르면 편집용 저장값은 지워지므로, 새로고침해도 편집 모드로 열리지 않습니다.
+  const VIEW_REMEMBER_KEY = "weekly-schedule-view-v2";
+  const EDIT_REMEMBER_KEY = "weekly-schedule-edit-v2";
+  const LEGACY_REMEMBER_KEY = "weekly-schedule-gh-config-v1"; // 이전 버전 저장값 (자동 이전 후 삭제)
+  function rememberToken(key, cfg){
+    try{ localStorage.setItem(key, JSON.stringify({token: cfg.token})); }
+    catch(e){ console.warn("이 브라우저에 저장하지 못했습니다:", e); }
   }
-  function forgetGhConfig(){
-    try{ localStorage.removeItem(GH_REMEMBER_KEY); }catch(e){}
+  function forgetToken(key){
+    try{ localStorage.removeItem(key); }catch(e){}
   }
-  function loadRememberedGhConfig(){
+  function loadRememberedToken(key){
     try{
-      const raw = localStorage.getItem(GH_REMEMBER_KEY);
-      return raw ? JSON.parse(raw) : null;
+      const raw = localStorage.getItem(key);
+      if(!raw) return null;
+      const obj = JSON.parse(raw);
+      return (obj && typeof obj.token==="string" && obj.token) ? obj : null;
     }catch(e){ return null; }
+  }
+  function migrateLegacyRemembered(){
+    const legacy = loadRememberedToken(LEGACY_REMEMBER_KEY);
+    if(legacy){
+      // 이전 버전은 편집 잠금 해제 시에만 editUnlocked:true를 함께 저장했습니다.
+      rememberToken(legacy.editUnlocked ? EDIT_REMEMBER_KEY : VIEW_REMEMBER_KEY, legacy);
+    }
+    forgetToken(LEGACY_REMEMBER_KEY);
   }
 
   function setAccessButtonsState(connected){
@@ -1473,50 +1603,203 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     document.getElementById("importBtn").style.display = unlocked ? "" : "none";
     document.getElementById("schoolName").contentEditable = unlocked ? "true" : "false";
     document.body.classList.toggle("read-only", !unlocked);
-    render(); // row-labels/day-cells need to re-render with the new edit affordances shown or hidden
+    if(ghConfig) setBannerState("connected");
+    // 권한이 바뀌면 이동 가능 범위도 바뀝니다. 열람 범위를 벗어난 주(예: 3주 후)를 보고 있다가
+    // 편집을 잠그면 이번 주로 돌아갑니다.
+    if(!isWeekNavigable(weekStart)){
+      goToWeek(thisWeekStart());
+    } else {
+      render(); // row-labels/day-cells need to re-render with the new edit affordances shown or hidden
+      updateWeekNavButtons();
+    }
   }
 
-  // Decrypting EDIT_AUTO_CONFIG.enc with the edit password yields a real GitHub token — this lets
-  // "편집하기" connect AND unlock editing in a single step, without going through "일정표 접속" first.
-  async function attemptEditUnlock(password, remember){
-    if(!EDIT_AUTO_CONFIG.enc || !EDIT_AUTO_CONFIG.enc.data){
-      alert("관리자가 아직 편집 비밀번호를 설정하지 않았습니다.");
-      return false;
+  // ---------- 저장 (편집 권한이 있을 때만) ----------
+  function canWrite(){ return !!ghConfig && ghConfig.mode==="edit" && editUnlocked; }
+
+  function saveErrorMessage(err){
+    switch(err && err.status){
+      case 401: return "저장하지 못했습니다. 편집 권한 토큰이 만료되었거나 올바르지 않습니다.\n관리자에게 문의해주세요.";
+      case 403: return "저장하지 못했습니다. 편집 권한 토큰에 쓰기 권한이 없습니다.\n관리자에게 토큰 권한(Contents: Read and write)을 확인해 달라고 요청해주세요.";
+      case 404: return "저장하지 못했습니다. 일정표 저장소에 접근할 수 없습니다.\n토큰의 대상 저장소 설정을 확인해주세요.";
+      case 409: return "저장하지 못했습니다. 다른 사람의 저장과 충돌했습니다.\n새로고침한 뒤 다시 입력해주세요.";
+      default:  return "저장하지 못했습니다. 인터넷 연결을 확인한 뒤 해당 칸을 다시 열고 '저장 및 닫기'를 눌러주세요.";
     }
+  }
+
+  // The JSON payload is snapshotted at the moment of the request, and the token captured with it,
+  // so a later "편집 잠그기" or week change can't alter what (or with which token) this save writes.
+  function saveWeekToGithub(weekKey, opts){
+    opts = opts || {};
+    if(!canWrite()) return Promise.resolve(false);
+    const cfg = ghConfig;
+    ensureWeek(weekKey);
+    const json = JSON.stringify({weekStart: weekKey, categories, entries: {[weekKey]: entries[weekKey]}}, null, 2);
+    pendingSaves++;
+    ghSaveQueue = ghSaveQueue.then(async ()=>{
+      try{
+        await putWeekFile(cfg, weekKey, json, 0);
+        if(!opts.silent) showToast("저장되었습니다", "ok");
+      }catch(err){
+        console.error(err);
+        showToast(saveErrorMessage(err), "error", true);
+      }finally{
+        pendingSaves--;
+      }
+    });
+    return ghSaveQueue;
+  }
+
+  async function putWeekFile(cfg, weekKey, json, attempt){
+    const api = contentsUrl(cfg, weekKey);
+    const headers = ghHeaders(cfg);
+    let sha = null;
+    const getRes = await fetch(`${api}?ref=${encodeURIComponent(cfg.branch)}`, {headers, cache:"no-store"});
+    if(getRes.status===200){
+      sha = (await getRes.json()).sha;
+    } else if(getRes.status!==404){
+      throw makeError(`파일 조회 실패 (${getRes.status})`, {status:getRes.status});
+    }
+    const body = {
+      message: `주간일정표 저장: ${weekKey}`,
+      content: utf8ToBase64(json),
+      branch: cfg.branch
+    };
+    if(sha) body.sha = sha;
+    const putRes = await fetch(api, {
+      method: "PUT",
+      headers: {...headers, "Content-Type":"application/json"},
+      body: JSON.stringify(body)
+    });
+    if(putRes.status===409 && attempt<2){
+      // stale sha (a concurrent save landed first) — refetch the latest version and try once more
+      return putWeekFile(cfg, weekKey, json, attempt+1);
+    }
+    if(!putRes.ok){
+      const errBody = await putRes.json().catch(()=>({}));
+      throw makeError(errBody.message || `저장 실패 (${putRes.status})`, {status:putRes.status});
+    }
+  }
+
+  // 저장 중에 창을 닫으려 하면 브라우저 기본 경고를 띄웁니다.
+  window.addEventListener("beforeunload", (e)=>{
+    if(pendingSaves>0){ e.preventDefault(); e.returnValue = ""; }
+  });
+
+  // ---------- 접속 ----------
+  // 1) 저장소 접근 확인 → 2) 현재 주 불러오기 → 3) 화면 상태 갱신. 실패하면 null 대신 오류를 돌려주고,
+  // 이미 다른 토큰으로 접속 중이었다면(예: 열람 중 편집 비밀번호 입력 실패) 원래 접속을 그대로 유지합니다.
+  async function connectWithConfig(cfg){
+    const prevCfg = ghConfig;
+    const key = iso(weekStart);
+    setBannerState("loading");
     try{
-      const token = await decryptToken(EDIT_AUTO_CONFIG.enc, password);
-      const cfg = { owner: GH_AUTO_CONFIG.owner, repo: GH_AUTO_CONFIG.repo, branch: GH_AUTO_CONFIG.branch, path: GH_AUTO_CONFIG.path, token };
-      const ok = await connectWithConfig(cfg); // connectWithConfig already reverts state + explains if this fails
-      if(!ok) return false;
-      if(remember) rememberGhConfig({...cfg, editUnlocked:true});
-      setEditButtonsState(true);
-      return true;
+      await verifyRepoAccess(cfg);
+      ghConfig = cfg;
+      loadedFromGithubWeeks.clear(); // 새 토큰으로 접속했으니 다른 주도 최신 내용으로 다시 받아옴
+      weekLoadingKey = key;
+      await loadWeekFromGithub(key, cfg);
+      weekLoadingKey = null;
+      setAccessButtonsState(true);
+      render();
+      setBannerState("connected");
+      return null;
     }catch(err){
-      return false;
+      console.error(err);
+      weekLoadingKey = null;
+      if(prevCfg){
+        ghConfig = prevCfg;
+        setBannerState("connected");
+      } else {
+        ghConfig = null;
+        entries = {};
+        loadedFromGithubWeeks.clear();
+        ensureWeek(key);
+        setAccessButtonsState(false);
+        setBannerState("demo");
+        render();
+      }
+      return err;
     }
   }
 
+  function connectErrorMessage(err, kind){
+    if(err && err.userMessage) return err.userMessage;
+    if(err && err.isDecryptError){
+      return kind==="edit" ? "편집 비밀번호가 올바르지 않습니다. 다시 시도해주세요." : "접속 암호가 올바르지 않습니다. 다시 시도해주세요.";
+    }
+    if(err && err.isAuthError){
+      return "암호는 맞지만 일정표 저장소에 접근할 수 없습니다.\n토큰이 만료되었거나 토큰의 대상 저장소·권한 설정이 맞지 않을 수 있어요. 관리자에게 문의해주세요.";
+    }
+    return "데이터를 불러오는 중 문제가 발생했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.";
+  }
+
+  // 관리자 점검용: 열람용과 편집용 토큰이 같으면 권한 분리가 안 된 상태이므로 경고합니다.
+  function warnIfSameToken(){
+    if(sameTokenWarned || !viewCfg || !ghConfig || ghConfig.mode!=="edit") return;
+    if(viewCfg.token === ghConfig.token){
+      sameTokenWarned = true;
+      console.warn("열람용 토큰과 편집용 토큰이 같습니다. 권한 분리가 적용되지 않은 상태입니다.");
+      showToast("관리자 확인 필요: 열람용과 편집용 토큰이 같습니다.\n열람 암호만 아는 사람도 일정을 수정할 수 있으니, 열람용은 읽기 전용(Contents: Read-only) 토큰으로 다시 발급해주세요.", "error", true);
+    }
+  }
+
+  // 열람 접속 ("일정표 접속") — 읽기 전용 토큰
+  async function runAutoConnect(passphrase, remember){
+    if(!isEncConfigured(GH_AUTO_CONFIG)){
+      return makeError("not configured", {userMessage:"관리자가 아직 일정표 접속을 설정하지 않았습니다."});
+    }
+    let token;
+    try{ token = await decryptToken(GH_AUTO_CONFIG.enc, passphrase); }
+    catch(e){ return makeError("decrypt failed", {isDecryptError:true}); }
+    const cfg = buildCfg(token, "view");
+    const err = await connectWithConfig(cfg);
+    if(err) return err;
+    viewCfg = cfg;
+    if(remember) rememberToken(VIEW_REMEMBER_KEY, cfg);
+    return null;
+  }
+
+  // 편집 접속 ("편집하기") — 편집용 토큰으로 접속과 편집 잠금 해제를 한 번에
+  async function attemptEditUnlock(password, remember){
+    if(!isEncConfigured(EDIT_AUTO_CONFIG)){
+      return makeError("not configured", {userMessage:"관리자가 아직 편집 비밀번호를 설정하지 않았습니다."});
+    }
+    let token;
+    try{ token = await decryptToken(EDIT_AUTO_CONFIG.enc, password); }
+    catch(e){ return makeError("decrypt failed", {isDecryptError:true}); }
+    const cfg = buildCfg(token, "edit");
+    const err = await connectWithConfig(cfg);
+    if(err) return err;
+    if(remember) rememberToken(EDIT_REMEMBER_KEY, cfg);
+    setEditButtonsState(true);
+    return null;
+  }
+
+  // ---------- 편집하기 모달 ----------
   const editBackdrop = document.getElementById("editBackdrop");
   document.getElementById("editModeBtn").addEventListener("click", ()=>{
     editBackdrop.classList.add("open");
     setTimeout(()=> document.getElementById("editPass").focus(), 50);
   });
-  document.getElementById("lockModeBtn").addEventListener("click", ()=>{
-    setEditButtonsState(false);
-  });
   async function submitEditUnlock(){
     const passInput = document.getElementById("editPass");
+    const goBtn = document.getElementById("editPassGoBtn");
     const pass = passInput.value;
-    if(!pass) return;
+    if(!pass || goBtn.disabled) return;
     const remember = document.getElementById("editRemember").checked;
-    const ok = await attemptEditUnlock(pass, remember);
-    if(ok){
+    goBtn.disabled = true;
+    const err = await attemptEditUnlock(pass, remember);
+    goBtn.disabled = false;
+    passInput.value = "";
+    if(!err){
       editBackdrop.classList.remove("open");
-      passInput.value = "";
+      showToast(`편집 모드입니다. ${EDIT_MAX_WEEKS_AHEAD}주 후까지 편집할 수 있습니다.`, "ok");
+      warnIfSameToken(); // 안내 토스트 뒤에 띄워야 경고가 덮이지 않음
     }else{
-      alert("비밀번호가 올바르지 않습니다. 다시 시도해주세요.");
-      passInput.value = "";
-      passInput.focus();
+      alert(connectErrorMessage(err, "edit"));
+      if(err.isDecryptError) passInput.focus();
+      else editBackdrop.classList.remove("open");
     }
   }
   document.getElementById("editPassGoBtn").addEventListener("click", submitEditUnlock);
@@ -1529,10 +1812,26 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     editBackdropMouseDownOnSelf = false;
   });
 
+  // ---------- 편집 잠그기 ----------
+  // 편집용 토큰의 "이 브라우저에 저장" 값을 지우고 읽기 전용으로 돌아갑니다. 이번 세션에 열람용
+  // 토큰이 있으면 그 토큰으로 바꾸고, 없으면 연결은 유지하되 쓰기는 하지 않습니다(canWrite=false).
+  document.getElementById("lockModeBtn").addEventListener("click", ()=>{
+    forgetToken(EDIT_REMEMBER_KEY);
+    if(viewCfg) ghConfig = viewCfg;
+    else if(ghConfig) ghConfig = {...ghConfig, mode:"view"};
+    setEditButtonsState(false);
+    showToast("편집을 잠갔습니다. 읽기 전용으로 전환되었습니다.");
+  });
+
+  // ---------- 일정표 해제 ----------
   document.getElementById("releaseBtn").addEventListener("click", ()=>{
-    if(!confirm("일정표 연결을 해제할까요? 화면의 일정 내용도 함께 사라지고, 이 브라우저에 저장된 접속 정보도 지워집니다.")) return;
-    forgetGhConfig();
+    const pendingNote = pendingSaves>0 ? "\n(저장 중인 내용은 끝까지 저장됩니다.)" : "";
+    if(!confirm("일정표 연결을 해제할까요? 화면의 일정 내용도 함께 사라지고, 이 브라우저에 저장된 접속 정보(열람·편집)도 지워집니다." + pendingNote)) return;
+    forgetToken(VIEW_REMEMBER_KEY);
+    forgetToken(EDIT_REMEMBER_KEY);
+    forgetToken(LEGACY_REMEMBER_KEY);
     ghConfig = null;
+    viewCfg = null;
     entries = {};                 // clear loaded data from view — nothing stays visible once disconnected
     loadedFromGithubWeeks.clear();
     ensureWeek(iso(weekStart));
@@ -1542,144 +1841,30 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     render();
   });
 
-  // Saves for the same week must run one-at-a-time; overlapping saves cause a "sha does not match"
-  // conflict on GitHub's side (a stale version number sent alongside a request that arrives second).
-  let ghSaveQueue = Promise.resolve();
-
-  function saveWeekToGithub(weekKey){
-    ghSaveQueue = ghSaveQueue
-      .then(()=> doSaveWeekToGithub(weekKey))
-      .catch(err=> console.error(err)); // keep the queue alive even if one save fails
-    return ghSaveQueue;
-  }
-
-  async function putWeekFile(api, headers, weekKey, json, attempt){
-    let sha = null;
-    const getRes = await fetch(`${api}?ref=${encodeURIComponent(ghConfig.branch)}`, {headers, cache:"no-store"});
-    if(getRes.status===200){
-      sha = (await getRes.json()).sha;
-    } else if(getRes.status!==404){
-      throw new Error(`파일 조회 실패 (${getRes.status})`);
-    }
-    const body = {
-      message: `주간일정표 저장: ${weekKey}`,
-      content: utf8ToBase64(json),
-      branch: ghConfig.branch
-    };
-    if(sha) body.sha = sha;
-    const putRes = await fetch(api, {
-      method: "PUT",
-      headers: {...headers, "Content-Type":"application/json"},
-      body: JSON.stringify(body)
-    });
-    if(putRes.status===409 && attempt<2){
-      // stale sha (a concurrent save landed first) — refetch the latest version and try once more
-      return putWeekFile(api, headers, weekKey, json, attempt+1);
-    }
-    if(!putRes.ok){
-      const errBody = await putRes.json().catch(()=>({}));
-      throw new Error(errBody.message || `저장 실패 (${putRes.status})`);
-    }
-  }
-
-  async function doSaveWeekToGithub(weekKey){
-    if(!ghConfig) return;
-    const payload = {weekStart: weekKey, categories, entries: {[weekKey]: entries[weekKey]}};
-    const json = JSON.stringify(payload, null, 2);
-    const filePath = `${ghConfig.path}/${weekKey}.json`;
-    const api = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${filePath}`;
-    const headers = {
-      "Authorization": `token ${ghConfig.token}`,
-      "Accept": "application/vnd.github+json"
-    };
-    try{
-      await putWeekFile(api, headers, weekKey, json, 0);
-    }catch(err){
-      console.error(err);
-    }
-  }
-
-  // Sample data is intentionally not pre-loaded — until "일정표 접속" succeeds, every cell stays
-  // empty rather than showing placeholder content that could be mistaken for real data.
-  ensureWeek(iso(weekStart));
-
-  render();
-  setBannerState("demo"); // wires up the banner's "일정표 접속" button and shows the demo-data notice
-  setAccessButtonsState(false);
-  setEditButtonsState(false);
-
-  // ---------- Connect + load a week's data, then update all the status UI ----------
-  // Always starts read-only; callers that want editing unlocked (attemptEditUnlock) flip it
-  // back on right after this resolves. Returns true on success, false if the token turned out
-  // to be invalid (wrong/leftover token) — callers should undo the "connected" UI in that case.
-  async function connectWithConfig(cfg){
-    ghConfig = cfg;
-    setAccessButtonsState(true);
-    setEditButtonsState(false);
-    setBannerState("loading");
-    const key = iso(weekStart);
-    try{
-      await loadWeekFromGithub(key);
-      render();
-      setBannerState("connected");
-      return true;
-    }catch(err){
-      console.error(err);
-      ghConfig = null;
-      entries = {};
-      loadedFromGithubWeeks.clear();
-      ensureWeek(key);
-      setAccessButtonsState(false);
-      setBannerState("demo");
-      render();
-      if(err.isAuthError){
-        alert("접속 정보가 올바르지 않습니다. 토큰이 잘못되었거나 만료되었을 수 있어요 — 관리자에게 문의해주세요.");
-      }else{
-        alert("데이터를 불러오는 중 문제가 발생했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.");
-      }
-      return false;
-    }
-  }
-
-  async function runAutoConnect(passphrase, remember){
-    if(!GH_AUTO_CONFIG.enc || !GH_AUTO_CONFIG.enc.data){
-      alert("관리자가 아직 일정표 접속을 설정하지 않았습니다.");
-      return false;
-    }
-    try{
-      const token = await decryptToken(GH_AUTO_CONFIG.enc, passphrase);
-      const cfg = { owner: GH_AUTO_CONFIG.owner, repo: GH_AUTO_CONFIG.repo, branch: GH_AUTO_CONFIG.branch, path: GH_AUTO_CONFIG.path, token };
-      const ok = await connectWithConfig(cfg); // connectWithConfig already reverts state + explains if this fails
-      if(!ok) return false;
-      if(remember) rememberGhConfig(cfg);
-      return true;
-    }catch(err){
-      console.error(err);
-      return false;
-    }
-  }
-
+  // ---------- 일정표 접속 모달 ----------
   const passBackdrop = document.getElementById("passBackdrop");
   function openAccessModal(){
     passBackdrop.classList.add("open");
     setTimeout(()=> document.getElementById("autoConnectPass").focus(), 50);
   }
-
   document.getElementById("accessBtn").addEventListener("click", openAccessModal);
 
   async function submitAutoConnect(){
     const passInput = document.getElementById("autoConnectPass");
+    const goBtn = document.getElementById("autoConnectGoBtn");
     const pass = passInput.value;
-    if(!pass) return;
+    if(!pass || goBtn.disabled) return;
     const remember = document.getElementById("autoConnectRemember").checked;
-    const ok = await runAutoConnect(pass, remember);
-    if(ok){
+    goBtn.disabled = true;
+    const err = await runAutoConnect(pass, remember);
+    goBtn.disabled = false;
+    passInput.value = "";
+    if(!err){
       passBackdrop.classList.remove("open");
-      passInput.value = "";
     }else{
-      alert("암호가 올바르지 않거나 복호화에 실패했습니다. 다시 시도해주세요.");
-      passInput.value = "";
-      passInput.focus();
+      alert(connectErrorMessage(err, "view"));
+      if(err.isDecryptError) passInput.focus();
+      else passBackdrop.classList.remove("open");
     }
   }
   document.getElementById("autoConnectGoBtn").addEventListener("click", submitAutoConnect);
@@ -1694,16 +1879,48 @@ const HWPX_CTRL_BLOCK = `<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT"
     passBackdropMouseDownOnSelf = false;
   });
 
-  // ---------- On page load: reconnect automatically if this browser already has a saved connection ----------
-  const remembered = loadRememberedGhConfig();
-  if(remembered && remembered.owner && remembered.repo && remembered.token){
-    connectWithConfig(remembered).then(ok=>{ // zero-friction — no prompt at all
-      if(ok && remembered.editUnlocked) setEditButtonsState(true);
-      if(!ok) forgetGhConfig(); // stale/invalid saved token — don't keep failing silently on every reload
-    });
-  } else if(GH_AUTO_CONFIG.enc && GH_AUTO_CONFIG.enc.data){
-    openAccessModal(); // admin has set up an access password — ask for it
-  }
+  // Escape closes whichever dialog is open
+  document.addEventListener("keydown", (e)=>{
+    if(e.key!=="Escape") return;
+    if(backdrop.classList.contains("open")) closeModal();
+    else if(editBackdrop.classList.contains("open")) editBackdrop.classList.remove("open");
+    else if(passBackdrop.classList.contains("open")) passBackdrop.classList.remove("open");
+  });
+
+  // ---------- 초기 화면 ----------
+  // Sample data is intentionally not pre-loaded — until "일정표 접속" succeeds, every cell stays
+  // empty rather than showing placeholder content that could be mistaken for real data.
+  ensureWeek(iso(weekStart));
+  setBannerState("demo");
+  setAccessButtonsState(false);
+  setEditButtonsState(false); // also renders and sets the nav buttons for the read-only window
+
+  // ---------- On page load: reconnect automatically if this browser has a saved connection ----------
+  // 저장된 열람/편집 정보가 있으면 자동 접속합니다. 토큰이 만료·무효(인증 오류)일 때만 저장값을 지우고,
+  // 일시적인 네트워크 오류에서는 지우지 않습니다.
+  (async function autoReconnect(){
+    migrateLegacyRemembered();
+    const savedView = loadRememberedToken(VIEW_REMEMBER_KEY);
+    const savedEdit = loadRememberedToken(EDIT_REMEMBER_KEY);
+
+    if(savedView){
+      const cfg = buildCfg(savedView.token, "view");
+      const err = await connectWithConfig(cfg);
+      if(!err) viewCfg = cfg;
+      else if(err.isAuthError){ forgetToken(VIEW_REMEMBER_KEY); showToast("저장된 접속 정보가 만료되었습니다. 다시 '일정표 접속'을 눌러주세요.", "error"); }
+      else showToast("저장된 접속 정보로 연결하지 못했습니다. 인터넷 연결을 확인해주세요.", "error");
+    }
+    if(savedEdit){
+      const cfg = buildCfg(savedEdit.token, "edit");
+      const err = await connectWithConfig(cfg);
+      if(!err){ setEditButtonsState(true); warnIfSameToken(); }
+      else if(err.isAuthError){ forgetToken(EDIT_REMEMBER_KEY); showToast("저장된 편집 권한이 만료되었습니다. 다시 '편집하기'를 눌러주세요.", "error"); }
+      else showToast("저장된 편집 정보로 연결하지 못했습니다. 인터넷 연결을 확인해주세요.", "error");
+    }
+    if(!ghConfig && isEncConfigured(GH_AUTO_CONFIG)){
+      openAccessModal(); // admin has set up an access password — ask for it
+    }
+  })();
 })();
 </script>
 </body>

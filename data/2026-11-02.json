@@ -22,6 +22,20 @@
       "c1": {
         "0": [
           {
+            "id": "e70e6cuo",
+            "groupId": "e70e6cuo",
+            "time": "09:10",
+            "title": "월례조회",
+            "loc": "대회의실"
+          },
+          {
+            "id": "e5nfheb8",
+            "groupId": "e5nfheb8",
+            "time": "10:00",
+            "title": "2026.행정사무감사 관련 업무보고-평생",
+            "loc": "교육장실"
+          },
+          {
             "id": "et78unyj",
             "groupId": "et78unyj",
             "time": "13:00",
@@ -83,6 +97,20 @@
       },
       "c2": {
         "0": [
+          {
+            "id": "en0ec5cq",
+            "groupId": "e70e6cuo",
+            "time": "09:10",
+            "title": "월례조회",
+            "loc": "대회의실"
+          },
+          {
+            "id": "eaht6flz",
+            "groupId": "e5nfheb8",
+            "time": "10:00",
+            "title": "2026.행정사무감사 관련 업무보고-평생",
+            "loc": "교육장실"
+          },
           {
             "id": "eg7rbjq1",
             "groupId": "et78unyj",
@@ -153,6 +181,13 @@
       },
       "c3": {
         "0": [
+          {
+            "id": "ekmoax80",
+            "groupId": "e70e6cuo",
+            "time": "09:10",
+            "title": "월례조회",
+            "loc": "대회의실"
+          },
           {
             "id": "et0b4xz1",
             "groupId": "et78unyj",

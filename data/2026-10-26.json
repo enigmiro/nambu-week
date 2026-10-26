@@ -107,6 +107,13 @@
             "loc": "시교육청"
           },
           {
+            "id": "enh55e12",
+            "groupId": "enh55e12",
+            "time": "13:30",
+            "title": "학산초 방문",
+            "loc": "학산초 "
+          },
+          {
             "id": "e396cl8b",
             "groupId": "ems5iv2f",
             "time": "15:00",
@@ -197,6 +204,13 @@
           }
         ],
         "4": [
+          {
+            "id": "elf5jy0c",
+            "groupId": "enh55e12",
+            "time": "13:30",
+            "title": "학산초 방문",
+            "loc": "학산초 "
+          },
           {
             "id": "ems5iv2f",
             "groupId": "ems5iv2f",

@@ -29,13 +29,6 @@
             "loc": "대회의실"
           },
           {
-            "id": "et78unyj",
-            "groupId": "et78unyj",
-            "time": "13:00",
-            "title": "주간공감회의",
-            "loc": "교육장실"
-          },
-          {
             "id": "ebqsmp59",
             "groupId": "ebqsmp59",
             "time": "14:00",
@@ -135,13 +128,6 @@
             "loc": "대회의실"
           },
           {
-            "id": "eg7rbjq1",
-            "groupId": "et78unyj",
-            "time": "13:00",
-            "title": "주간공감회의",
-            "loc": "교육장실"
-          },
-          {
             "id": "eclv64ba",
             "groupId": "eclv64ba",
             "time": "15:00",
@@ -239,13 +225,6 @@
             "time": "09:10",
             "title": "월례조회",
             "loc": "대회의실"
-          },
-          {
-            "id": "et0b4xz1",
-            "groupId": "et78unyj",
-            "time": "13:00",
-            "title": "주간공감회의",
-            "loc": "교육장실"
           },
           {
             "id": "exh0qy7q",
